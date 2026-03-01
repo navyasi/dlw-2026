@@ -14,7 +14,7 @@ AI-driven adaptive learning engine for Blackboard "Study Mode" (Microsoft hackat
    ```bash
    cp .env.example .env
    ```
-   Open `.env` and replace `sk-...` with the OpenAI API key (ask Jessie on WhatsApp).
+   Open `.env` and replace `sk-...` with the OpenAI API key.
 
 3. **Set up the Python environment**
    ```bash
