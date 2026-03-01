@@ -1,0 +1,40 @@
+[
+  {
+    "subject": "mathematics",
+    "concepts": [
+      {"id": "algebra_basics",    "label": "Algebra Basics",        "prerequisites": []},
+      {"id": "functions",         "label": "Functions & Graphs",    "prerequisites": [{"id": "algebra_basics", "weight": 0.8}]},
+      {"id": "differentiation",   "label": "Differentiation",       "prerequisites": [{"id": "functions", "weight": 0.9}]},
+      {"id": "chain_rule",        "label": "Chain Rule",            "prerequisites": [{"id": "differentiation", "weight": 0.95}]},
+      {"id": "integration",       "label": "Integration",           "prerequisites": [{"id": "differentiation", "weight": 0.85}]},
+      {"id": "optimization",      "label": "Optimization",          "prerequisites": [
+        {"id": "differentiation", "weight": 0.9},
+        {"id": "chain_rule",      "weight": 0.7}
+      ]}
+    ]
+  },
+  {
+    "subject": "deep_learning",
+    "concepts": [
+      {"id": "linear_algebra",    "label": "Linear Algebra",        "prerequisites": []},
+      {"id": "calculus",          "label": "Calculus",              "prerequisites": []},
+      {"id": "chain_rule",        "label": "Chain Rule",            "prerequisites": [{"id": "calculus", "weight": 0.95}]},
+      {"id": "gradient_descent",  "label": "Gradient Descent",      "prerequisites": [
+        {"id": "calculus", "weight": 0.9},
+        {"id": "linear_algebra", "weight": 0.8}
+      ]},
+      {"id": "backprop",          "label": "Backpropagation",       "prerequisites": [
+        {"id": "chain_rule",      "weight": 0.95},
+        {"id": "gradient_descent","weight": 0.85}
+      ]},
+      {"id": "cnn",               "label": "Convolutional Networks", "prerequisites": [
+        {"id": "backprop",        "weight": 0.9},
+        {"id": "linear_algebra",  "weight": 0.7}
+      ]},
+      {"id": "transformers",      "label": "Transformers",          "prerequisites": [
+        {"id": "backprop",        "weight": 0.85},
+        {"id": "linear_algebra",  "weight": 0.9}
+      ]}
+    ]
+  }
+]
