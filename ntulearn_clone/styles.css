@@ -2153,37 +2153,10 @@ body.north-star .hidden-ns {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #e2e8f0;
-    /* Default gray */
+    background: var(--ns-sidebar-border);
     border: 2px solid var(--ns-sidebar);
     transition: all 0.2s;
 }
-
-.ns-timeline-item.ai .ns-timeline-dot {
-    background: #6366f1;
-    /* Purple/Indigo dot */
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-    /* Soft glow */
-}
-
-.ns-timeline-time {
-    font-size: 0.75rem;
-    color: #64748b;
-    margin-bottom: 4px;
-    font-weight: 500;
-}
-
-.ns-timeline-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--ns-text-main);
-}
-
-.ns-timeline-item.ai .ns-timeline-title {
-    color: #6366f1;
-    /* Purple text for AI tasks */
-}
-
 
 .ns-timeline-item.active .ns-timeline-dot {
     background: var(--ns-primary);
@@ -2772,28 +2745,40 @@ body.north-star .hidden-ns {
 
 .cal-grid__bg {
     position: absolute;
-    left: 10px;
-    right: 10px;
-    border-radius: 14px;
-    padding: 10px 10px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: var(--ns-shadow-sm);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+}
+
+.cal-grid__slot {
+    position: relative;
     cursor: pointer;
-    overflow: hidden;
 }
 
-.ns-cal2-event-time {
-    font-size: 0.72rem;
-    color: rgba(15, 23, 42, 0.65);
-    margin-bottom: 4px;
+.cal-grid__slot-hover {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    background: var(--ns-primary-light);
+    border: 1px dashed var(--ns-primary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--ns-primary);
+    font-size: 11px;
     font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.15s ease;
 }
 
-.ns-cal2-event-title {
-    font-size: 0.9rem;
-    font-weight: 800;
-    color: var(--ns-text-main);
-    margin-bottom: 6px;
+.cal-grid__slot:hover .cal-grid__slot-hover {
+    opacity: 1;
 }
 
 .cal-block__header {
@@ -3077,31 +3062,65 @@ body.north-star .hidden-ns {
 
 .ns-presc-title {
     font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ns-text);
+    margin-bottom: 2px;
 }
 
-/* kinds */
-.ns-cal2-event.kind-lecture {
-    background: rgba(59, 130, 246, 0.15);
+.ns-presc-action-type {
+    font-size: 0.82rem;
+    color: var(--ns-text-muted);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
 }
 
-.ns-cal2-event.kind-tutorial {
-    background: rgba(139, 92, 246, 0.15);
+.ns-presc-meta {
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 16px;
 }
 
-.ns-cal2-event.kind-lab {
-    background: rgba(34, 197, 94, 0.15);
+.ns-presc-time {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ns-text);
+    display: block;
+    margin-bottom: 6px;
 }
 
-.ns-cal2-event.kind-study {
-    background: rgba(16, 185, 129, 0.15);
+.ns-presc-mastery-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
 }
 
-.ns-cal2-event.kind-project {
-    background: rgba(15, 23, 42, 0.06);
-    border: 2px dashed rgba(15, 23, 42, 0.35);
+.ns-presc-why {
+    font-size: 0.9rem;
+    color: var(--ns-text);
+    margin: 0 0 12px 0;
+    line-height: 1.5;
 }
 
-.ns-cal2-event.kind-missed {
-    background: rgba(239, 68, 68, 0.10);
-    border: 2px dashed rgba(239, 68, 68, 0.45);
+.ns-presc-steps {
+    font-size: 0.9rem;
+    color: var(--ns-text);
+}
+
+.ns-presc-steps-label {
+    font-weight: 700;
+    margin: 0 0 6px 0;
+}
+
+.ns-presc-steps ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style: disc;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ns-presc-steps ul li {
+    color: var(--ns-text);
+    line-height: 1.5;
 }

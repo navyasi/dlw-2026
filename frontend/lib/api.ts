@@ -38,7 +38,6 @@ export interface CourseSection {
 export interface CourseDetail {
     id: number;
     title: string;
-    code?: string;
     description: string | null;
     lectures: CourseSection[];
     tutorials: CourseSection[];
