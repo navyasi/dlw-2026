@@ -31,6 +31,7 @@ from backend.routers import chat as chat_router
 from backend.routers import audio as audio_router
 from backend.routers import quiz as quiz_router
 from backend.routers import recall as recall_router
+from backend.routers import integration as integration_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -80,6 +81,7 @@ app.include_router(chat_router.router)
 app.include_router(audio_router.router)
 app.include_router(quiz_router.router)
 app.include_router(recall_router.router)
+app.include_router(integration_router.router)
 
 
 @app.get("/health")

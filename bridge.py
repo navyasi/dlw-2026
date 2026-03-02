@@ -160,3 +160,33 @@ def grade_to_quiz_responses(
         )
 
     return responses
+
+
+# ---------------------------------------------------------------------------
+# SessionEvent list  ->  QuizResponse list
+# ---------------------------------------------------------------------------
+
+def session_event_to_quiz_responses(
+    events: list,
+    subject: Optional[str] = None,
+) -> List[QuizResponse]:
+    """
+    Convert scheduler SessionEvent objects into QuizResponse objects so that
+    study-session interactions can update BKT mastery.
+
+    error_depth defaults to 0.0 because SessionEvent doesn't carry that field.
+    """
+    responses: List[QuizResponse] = []
+    for e in events:
+        responses.append(
+            QuizResponse(
+                student_id=e.student_id,
+                concept_id=e.concept_id,
+                subject=subject if subject is not None else e.subject,
+                correct=e.correct,
+                response_time_seconds=float(e.response_time_seconds),
+                timestamp=e.timestamp,
+                error_depth=0.0,
+            )
+        )
+    return responses

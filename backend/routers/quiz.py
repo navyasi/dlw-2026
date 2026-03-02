@@ -27,6 +27,8 @@ class GradeRequest(BaseModel):
     plan: dict[str, Any]
     completed_activity_ids: list[str]
     quiz_answers: dict[str, str]
+    student_id: str = "student_01"
+    subject: str = "deep_learning"
 
 
 @router.post("/{notebook_id}/generate")
@@ -106,12 +108,96 @@ async def generate_quiz(notebook_id: int):
 async def grade_quiz(payload: GradeRequest = Body(...)):
     """
     Grade a completed quiz submission and return scores.
+    Also pushes topic mastery into the MasteryEngine so study schedules update.
     """
     from kinesthetics import compute_kms
+    from engine_state import get_shared_engine
+    from bridge import grade_to_quiz_responses
 
     result = compute_kms(
         payload.plan,
         payload.completed_activity_ids,
         payload.quiz_answers,
     )
+
+    # Push mastery update into the shared engine so the scheduler stays in sync
+    topic_mastery = result.get("topic_mastery", {})
+    if topic_mastery:
+        try:
+            engine, _ = get_shared_engine()
+            responses = grade_to_quiz_responses(
+                topic_mastery, payload.student_id, payload.subject
+            )
+            engine.update_from_quiz(responses)
+        except Exception:
+            pass  # grading result still returned; engine update is best-effort
+
     return result
+
+
+class SessionEventPayload(BaseModel):
+    student_id: str
+    concept_id: str
+    subject: str
+    correct: bool
+    response_time_seconds: float
+
+
+class SessionEventsRequest(BaseModel):
+    events: list[SessionEventPayload]
+
+
+@router.post("/session-events")
+async def record_session_events(payload: SessionEventsRequest = Body(...)):
+    """
+    Accept a batch of study-session events, update BKT mastery, and return
+    cognitive-load stats so the frontend knows if the student needs a break.
+    """
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+    from scheduler import CognitiveLoadTracker
+    from scheduler.models import SessionEvent
+    from engine_state import get_shared_engine
+    from bridge import session_event_to_quiz_responses
+    from datetime import datetime
+
+    if not payload.events:
+        raise HTTPException(status_code=422, detail="events list is empty")
+
+    # Convert pydantic payloads -> scheduler SessionEvent dataclasses
+    events = [
+        SessionEvent(
+            student_id=e.student_id,
+            concept_id=e.concept_id,
+            subject=e.subject,
+            correct=e.correct,
+            response_time_seconds=e.response_time_seconds,
+            timestamp=datetime.now(),
+        )
+        for e in payload.events
+    ]
+
+    student_id = events[0].student_id
+
+    # 1. Cognitive load tracking
+    tracker = CognitiveLoadTracker(student_id=student_id)
+    for ev in events:
+        tracker.record_event(ev)
+    stats = tracker.compute_stats()
+
+    # 2. Update BKT mastery
+    try:
+        engine, _ = get_shared_engine()
+        responses = session_event_to_quiz_responses(events)
+        engine.update_from_quiz(responses)
+    except Exception:
+        pass  # stats still returned; engine update is best-effort
+
+    return {
+        "burnout_detected": stats.burnout_detected,
+        "optimal_remaining_minutes": stats.optimal_remaining_minutes,
+        "cognitive_efficiency": round(stats.cognitive_efficiency, 3),
+        "accuracy_rate": round(stats.accuracy_rate, 3),
+        "events_processed": len(events),
+    }

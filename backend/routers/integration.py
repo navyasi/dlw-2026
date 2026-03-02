@@ -1,55 +1,67 @@
+"""
+Integration router: AI analytics + timetable endpoints.
 
+Moves the heavy ML endpoints out of root main.py into the FastAPI backend so
+the Next.js frontend only needs to talk to one server (port 8000).
 
-###after spitting nto multiple files
+Endpoints:
+  POST /weekly-report
+  POST /integrated-weekly
+  POST /generate-kinesthetic
+  POST /grade-kinesthetic
+  POST /generate-lecture
+"""
+from __future__ import annotations
 
 import os
 import sys
-import json
 from datetime import date, timedelta
 from io import BytesIO
 from typing import Optional
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, UploadFile, File, HTTPException
+
+from fastapi import APIRouter, Body, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
-from pypdf import PdfReader
-from openai import OpenAI
-from insights import Concept, ReportConfig, generate_weekly_report
-from lecture import generate_lecture_script, text_to_speech_mp3
-from kinesthetics import generate_kinesthetic_plan, compute_kms, compute_topic_mastery
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-from learning_model import KnowledgeGraph, MasteryEngine, QuizResponse
-from scheduler import TimetableEngine, AvailabilityWindow
-from bridge import load_curriculum_meta, mastery_to_concepts_payload, grade_to_quiz_responses
-# Optional: load from .env if you use it
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except Exception:
-    pass
+# Ensure src/ is on the path for learning_model / scheduler imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-from fastapi import Body, HTTPException
-
-TEXT_MODEL = "gpt-4o-mini"
-TTS_MODEL = "gpt-4o-mini-tts"
-VOICE = "alloy"
+router = APIRouter(tags=["integration"])
 
 
-@app.post("/weekly-report")
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_openai_client():
+    from openai import OpenAI
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not set")
+    return OpenAI(api_key=api_key)
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    from pypdf import PdfReader
+    reader = PdfReader(BytesIO(pdf_bytes))
+    chunks = []
+    for i, page in enumerate(reader.pages, start=1):
+        text = (page.extract_text() or "").strip()
+        if text:
+            chunks.append(f"\n--- Page {i} ---\n{text}")
+    return "\n".join(chunks).strip()
+
+
+# ---------------------------------------------------------------------------
+# /weekly-report
+# ---------------------------------------------------------------------------
+
+@router.post("/weekly-report")
 async def weekly_report(payload: dict = Body(...)):
     try:
+        from insights import generate_weekly_report
         concepts_raw = payload.get("concepts", [])
         current_weekly_minutes = int(payload.get("current_weekly_minutes", 240))
-        cfg = payload.get("config", None)  # optional dict
+        cfg = payload.get("config", None)
         return generate_weekly_report(
             concepts_raw=concepts_raw,
             current_weekly_minutes=current_weekly_minutes,
@@ -59,49 +71,30 @@ async def weekly_report(payload: dict = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # /integrated-weekly  — full loop: quiz results → mastery → report + timetable
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
-_CURRICULUM_META = None  # lazy-loaded once
+_curriculum_meta = None
+
 
 def _get_curriculum_meta():
-    global _CURRICULUM_META
-    if _CURRICULUM_META is None:
-        _CURRICULUM_META = load_curriculum_meta()
-    return _CURRICULUM_META
+    global _curriculum_meta
+    if _curriculum_meta is None:
+        from bridge import load_curriculum_meta
+        _curriculum_meta = load_curriculum_meta()
+    return _curriculum_meta
 
 
-@app.post("/integrated-weekly")
+@router.post("/integrated-weekly")
 async def integrated_weekly(payload: dict = Body(...)):
-    """
-    Full integration endpoint wiring Person 1 (mastery engine) +
-    Person 4 (Sia — weekly analytics) + Person 3 (Chavi — timetable).
-
-    Request body:
-    {
-      "student_id":             "student_42",
-      "subject":                "deep_learning",
-      "exam_weights":           {"backprop": 0.25, "chain_rule": 0.20, ...},
-      "days_until_exam":        14,
-      "current_weekly_minutes": 240,       // optional, default 240
-      "topic_mastery":          {"backprop": 0.45, "chain_rule": 0.30, ...},  // optional — from /grade-kinesthetic
-      "quiz_responses": [       // optional — raw quiz history (overrides topic_mastery)
-        {"concept_id": "backprop", "correct": false, "response_time_seconds": 90, "error_depth": 0.8}
-      ],
-      "availability": [         // optional — defaults to Mon-Fri 3h, Sat-Sun 4h
-        {"day_of_week": 0, "available_hours": 3.0}, ...
-      ]
-    }
-
-    Response:
-    {
-      "weekly_report":   { ... },   // Sia's analytics
-      "study_plan":      { ... },   // Chavi's timetable (7 days)
-      "todays_schedule": { ... }    // today's Pomodoro blocks
-    }
-    """
     try:
+        from engine_state import get_shared_engine
+        from bridge import mastery_to_concepts_payload, grade_to_quiz_responses
+        from insights import generate_weekly_report
+        from scheduler import TimetableEngine, AvailabilityWindow
+        from learning_model import QuizResponse
+
         student_id = payload.get("student_id", "student_01")
         subject = payload.get("subject", "deep_learning")
         exam_weights: dict = payload.get("exam_weights", {})
@@ -113,12 +106,9 @@ async def integrated_weekly(payload: dict = Body(...)):
         if not exam_weights:
             raise HTTPException(status_code=422, detail="exam_weights is required")
 
-        api_key = os.getenv("OPENAI_API_KEY")
-        from engine_state import get_shared_engine
         engine, kg = get_shared_engine()
 
-        # 1. Ingest quiz results into the mastery engine
-        #    Priority: raw quiz_responses > topic_mastery from kinesthetic grader
+        # 1. Ingest quiz results
         if raw_quiz_responses:
             responses = [
                 QuizResponse(
@@ -133,22 +123,21 @@ async def integrated_weekly(payload: dict = Body(...)):
             ]
             engine.update_from_quiz(responses)
         elif topic_mastery:
-            # Convert Sia's topic_mastery output → QuizResponse objects
             responses = grade_to_quiz_responses(topic_mastery, student_id, subject)
             engine.update_from_quiz(responses)
 
-        # 2. Get current mastery state (with forgetting decay applied)
+        # 2. Get mastery state
         mastery_state = engine.get_mastery_state(student_id, subject)
 
-        # 3. Build Sia's concepts payload and run weekly analytics report
+        # 3. Weekly analytics report
         curriculum_meta = _get_curriculum_meta()
         concepts_payload = mastery_to_concepts_payload(mastery_state, exam_weights, curriculum_meta)
-        weekly_report = generate_weekly_report(
+        report = generate_weekly_report(
             concepts_raw=concepts_payload,
             current_weekly_minutes=current_weekly_minutes,
         )
 
-        # 4. Build timetable (Chavi's scheduler)
+        # 4. Build timetable
         availability_raw = payload.get("availability", [])
         if availability_raw:
             availability = [
@@ -159,7 +148,6 @@ async def integrated_weekly(payload: dict = Body(...)):
                 for a in availability_raw
             ]
         else:
-            # Sensible defaults: Mon-Fri 3h, Sat-Sun 4h
             availability = [
                 AvailabilityWindow(day_of_week=0, available_hours=3.0),
                 AvailabilityWindow(day_of_week=1, available_hours=3.0),
@@ -173,9 +161,8 @@ async def integrated_weekly(payload: dict = Body(...)):
         timetable = TimetableEngine(
             mastery_engine=engine,
             knowledge_graph=kg,
-            openai_api_key=api_key,
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
         )
-
         exam_date = date.today() + timedelta(days=days_until_exam)
         plan = timetable.generate_plan(
             student_id=student_id,
@@ -184,10 +171,8 @@ async def integrated_weekly(payload: dict = Body(...)):
             exam_date=exam_date,
             availability=availability,
         )
-
         todays_sched = timetable.get_todays_schedule(student_id, plan)
 
-        # 5. Serialise the study plan
         def serialise_block(b) -> dict:
             return {
                 "block_type": b.block_type,
@@ -212,14 +197,12 @@ async def integrated_weekly(payload: dict = Body(...)):
             "days": [serialise_day(d) for d in plan.days],
         }
 
-        todays_out = serialise_day(todays_sched) if todays_sched else None
-
         return {
             "student_id": student_id,
             "subject": subject,
-            "weekly_report": weekly_report,
+            "weekly_report": report,
             "study_plan": study_plan_out,
-            "todays_schedule": todays_out,
+            "todays_schedule": serialise_day(todays_sched) if todays_sched else None,
         }
 
     except HTTPException:
@@ -228,97 +211,62 @@ async def integrated_weekly(payload: dict = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not set")
-    return OpenAI(api_key=api_key)
+# ---------------------------------------------------------------------------
+# /generate-kinesthetic
+# ---------------------------------------------------------------------------
 
-from fastapi import Body
-
-@app.post("/generate-kinesthetic")
+@router.post("/generate-kinesthetic")
 async def generate_kinesthetic(file: UploadFile = File(...)):
-    client = get_client()
+    from kinesthetics import generate_kinesthetic_plan
+    client = _get_openai_client()
     pdf_bytes = await file.read()
-    pdf_text = extract_pdf_text(pdf_bytes)
-
-    plan = generate_kinesthetic_plan(client, pdf_text)
-    return plan
+    pdf_text = _extract_pdf_text(pdf_bytes)
+    return generate_kinesthetic_plan(client, pdf_text)
 
 
-# -------------------------
-# Utilities
-# -------------------------
+# ---------------------------------------------------------------------------
+# /grade-kinesthetic
+# ---------------------------------------------------------------------------
 
-
-@app.post("/grade-kinesthetic")
+@router.post("/grade-kinesthetic")
 async def grade_kinesthetic(payload: dict = Body(...)):
+    from kinesthetics import compute_topic_mastery
     plan = payload.get("plan", {})
     completed_activity_ids = payload.get("completed_activity_ids", [])
     quiz_answers = payload.get("quiz_answers", {})
 
-    # Compute topic mastery
     topic_mastery = compute_topic_mastery(plan, quiz_answers)
 
-    # Example scoring (adjust to your logic)
     completion_score = round(
         100 * len(completed_activity_ids) / max(1, len(plan.get("activities", [])))
     )
-
-    total_correct = 0
-    for topic, mastery in topic_mastery.items():
-        total_correct += mastery
-
-    quiz_score = round(100 * total_correct / max(1, len(topic_mastery)))
-
-    kinesthetic_mastery_score = round(
-        0.4 * completion_score + 0.6 * quiz_score
-    )
+    quiz_score = round(100 * sum(topic_mastery.values()) / max(1, len(topic_mastery)))
+    kinesthetic_mastery_score = round(0.4 * completion_score + 0.6 * quiz_score)
 
     return {
         "completion_score": completion_score,
         "quiz_score": quiz_score,
         "kinesthetic_mastery_score": kinesthetic_mastery_score,
-        "topic_mastery": topic_mastery
+        "topic_mastery": topic_mastery,
     }
 
-def extract_pdf_text(pdf_bytes: bytes) -> str:
-    reader = PdfReader(BytesIO(pdf_bytes))
-    text_chunks = []
 
-    for i, page in enumerate(reader.pages, start=1):
-        text = page.extract_text() or ""
-        text = text.strip()
-        if text:
-            text_chunks.append(f"\n--- Page {i} ---\n{text}")
+# ---------------------------------------------------------------------------
+# /generate-lecture
+# ---------------------------------------------------------------------------
 
-    return "\n".join(text_chunks).strip()
-
-
-# -------------------------
-# API Endpoint
-# -------------------------
-@app.post("/generate-lecture")
+@router.post("/generate-lecture")
 async def generate_lecture(file: UploadFile = File(...)):
-    client = get_client()
-
+    from lecture import generate_lecture_script, text_to_speech_mp3
+    client = _get_openai_client()
     pdf_bytes = await file.read()
-    pdf_text = extract_pdf_text(pdf_bytes)
-
+    pdf_text = _extract_pdf_text(pdf_bytes)
     if not pdf_text:
-        raise HTTPException(status_code=400, detail="No text extracted from PDF (scanned PDF needs OCR).")
-
+        raise HTTPException(status_code=400, detail="No text extracted from PDF.")
     script = generate_lecture_script(client, pdf_text)
     mp3_audio = text_to_speech_mp3(client, script)
-
     return StreamingResponse(
         BytesIO(mp3_audio),
         media_type="audio/mpeg",
         headers={"Content-Disposition": "attachment; filename=lecture.mp3"},
     )
-def main():
-    print("Hello from dlw-2026!")
-
-
-if __name__ == "__main__":
-    main()
