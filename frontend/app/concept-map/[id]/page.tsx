@@ -6,24 +6,31 @@ import { api, type ConceptMapData } from "@/lib/api";
 
 const ConceptMap = dynamic(() => import("@/components/ConceptMap"), { ssr: false });
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 export default function ConceptMapPage({ params }: Props) {
-    const notebookId = parseInt(params.id);
+    const [notebookId, setNotebookId] = useState<number | null>(null);
     const [mapData, setMapData] = useState<ConceptMapData | null>(null);
     const [loading, setLoading] = useState(true);
     const [regenerating, setRegenerating] = useState(false);
 
+    useEffect(() => {
+        params.then((p) => setNotebookId(parseInt(p.id)));
+    }, [params]);
+
     const load = () => {
+        if (notebookId == null) return;
         setLoading(true);
         api.getConceptMap(notebookId)
             .then(setMapData)
+            .catch(() => setMapData(null))
             .finally(() => setLoading(false));
     };
 
     useEffect(load, [notebookId]);
 
     const regenerate = async () => {
+        if (notebookId == null) return;
         setRegenerating(true);
         await fetch(`http://localhost:8000/concept-map/${notebookId}/generate`, { method: "POST" });
         setRegenerating(false);

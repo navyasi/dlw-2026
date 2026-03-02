@@ -4,16 +4,22 @@ import Link from "next/link";
 import { api, type TutorialQuestion } from "@/lib/api";
 import TutorialFlow from "@/components/TutorialFlow";
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 export default function TutorialPage({ params }: Props) {
-    const notebookId = parseInt(params.id);
+    const [notebookId, setNotebookId] = useState<number | null>(null);
     const [questions, setQuestions] = useState<TutorialQuestion[] | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        params.then((p) => setNotebookId(parseInt(p.id)));
+    }, [params]);
+
+    useEffect(() => {
+        if (notebookId == null) return;
         api.getTutorialFlow(notebookId)
             .then((res) => setQuestions(res.questions))
+            .catch(() => setQuestions(null))
             .finally(() => setLoading(false));
     }, [notebookId]);
 
@@ -31,7 +37,7 @@ export default function TutorialPage({ params }: Props) {
                     <p>The backend may still be processing. Refresh in a moment.</p>
                 </div>
             )}
-            {questions && (
+            {questions && notebookId != null && (
                 <TutorialFlow questions={questions} notebookId={notebookId} onFlag={async (_nbId, stepNum) => {
                     const res = await api.flagStep(notebookId, stepNum);
                     return res.hint;
