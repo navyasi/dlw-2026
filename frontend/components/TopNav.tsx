@@ -10,6 +10,7 @@ export default function TopNav() {
             <span className="logo">StudyMode</span>
             <nav>
                 <Link href="/" className={path === "/" ? "active" : ""}>Courses</Link>
+                <Link href="/calendar" className={path === "/calendar" ? "active" : ""}>Calendar</Link>
                 <Link href="/notebooks" className={path.startsWith("/notebook") ? "active" : ""}>Notebooks</Link>
             </nav>
             <DyslexiaToggle />

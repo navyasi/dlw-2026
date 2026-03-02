@@ -189,4 +189,62 @@ export const api = {
             method: "POST",
             body: JSON.stringify(payload),
         }),
+
+    // Audio — with IndexedDB persistent cache + singleflight
+    generateAudio: async (notebookId: number): Promise<string> => {
+        // 1. Check IndexedDB cache first (survives page reload)
+        const { getCachedAudioUrl, cacheAudioBlob } = await import("@/lib/audioCache");
+        const cached = await getCachedAudioUrl(notebookId);
+        if (cached) return cached;
+
+        // 2. Singleflight: if a request is already in-flight, await it
+        const key = `audio_inflight_${notebookId}`;
+        if ((window as any)[key]) return (window as any)[key];
+
+        const promise = (async () => {
+            try {
+                const res = await fetch(`${BASE}/audio/${notebookId}/generate`, { method: "POST" });
+                if (!res.ok) throw new Error(`Audio generation failed: ${res.status}`);
+                const blob = await res.blob();
+                // Store in IndexedDB for persistence
+                await cacheAudioBlob(notebookId, blob);
+                return URL.createObjectURL(blob);
+            } finally {
+                delete (window as any)[key];
+            }
+        })();
+        (window as any)[key] = promise;
+        return promise;
+    },
+
+    /** Clear both backend + frontend cache, then regenerate fresh */
+    regenerateAudio: async (notebookId: number): Promise<string> => {
+        const { clearCachedAudio, cacheAudioBlob } = await import("@/lib/audioCache");
+        // Clear frontend IndexedDB cache
+        await clearCachedAudio(notebookId);
+        // Clear backend disk cache
+        await fetch(`${BASE}/audio/${notebookId}/cache`, { method: "DELETE" }).catch(() => { });
+        // Generate fresh
+        const res = await fetch(`${BASE}/audio/${notebookId}/generate`, { method: "POST" });
+        if (!res.ok) throw new Error(`Audio regeneration failed: ${res.status}`);
+        const blob = await res.blob();
+        await cacheAudioBlob(notebookId, blob);
+        return URL.createObjectURL(blob);
+    },
+
+    // Quiz
+    generateQuiz: (notebookId: number) =>
+        jsonFetch<any>(`/quiz/${notebookId}/generate`, { method: "POST" }),
+    gradeQuiz: (payload: { plan: any; completed_activity_ids: string[]; quiz_answers: Record<string, string> }) =>
+        jsonFetch<any>("/quiz/grade", {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
+
+    // Active Recall
+    gradeRecall: (payload: { question: string; expected_key_points: string[]; transcript: string }) =>
+        jsonFetch<{ label: string; confidence: number; missing_points: string[]; suggestion: string }>("/recall/grade", {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
 };

@@ -6,7 +6,7 @@ interface Props {
 
 export default function ConceptBox({ data }: Props) {
     return (
-        <div className="concept-box">
+        <div className="concept-box" role="region" aria-label={`Concept: ${data.term}`}>
             <h3>{data.term}</h3>
             <p style={{ fontSize: 15, marginBottom: 12 }}>{data.definition}</p>
             <div className="meta-row">

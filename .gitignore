@@ -2,3 +2,12 @@
 .venv/
 study_mode.db
 __pycache__/
+__pycache__/.audio_cache/
+# Python
+__pycache__/
+*.pyc
+.audio_cache/
+
+# Node
+node_modules/
+.next/

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api, type CourseDetail, type CourseSection, type NotebookDetail, type TutorialQuestion } from "@/lib/api";
@@ -9,12 +9,16 @@ import WorkedExamples from "@/components/WorkedExamples";
 import SemanticBlocks from "@/components/SemanticBlocks";
 import TutorialFlow from "@/components/TutorialFlow";
 import ChatPanel from "@/components/ChatPanel";
+import AudioPlayer from "@/components/AudioPlayer";
+import QuizPanel from "@/components/QuizPanel";
+import type { SlideChunk } from "@/hooks/useActiveRecall";
 
 const FlowDiagram = dynamic(() => import("@/components/FlowDiagram"), { ssr: false });
 const ConceptMap = dynamic(() => import("@/components/ConceptMap"), { ssr: false });
 
 interface Props { params: Promise<{ id: string }> }
 type MainView = "notes" | "concept-map" | "tutorial";
+type ContentMode = "visual" | "audio" | "quiz";
 
 const SOURCE_LABEL: Record<string, string> = {
     slides: "Lecture",
@@ -28,6 +32,7 @@ export default function CoursePage({ params }: Props) {
     const [activeSection, setActiveSection] = useState<CourseSection | null>(null);
     const [activeTab, setActiveTab] = useState<"lectures" | "tutorials">("lectures");
     const [mainView, setMainView] = useState<MainView>("notes");
+    const [contentMode, setContentMode] = useState<ContentMode>("visual");
     const [notebook, setNotebook] = useState<NotebookDetail | null>(null);
     const [tutorialQuestions, setTutorialQuestions] = useState<TutorialQuestion[] | null>(null);
     const [conceptMapData, setConceptMapData] = useState<any>(null);
@@ -35,6 +40,8 @@ export default function CoursePage({ params }: Props) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [loading, setLoading] = useState(true);
     const [sectionLoading, setSectionLoading] = useState(false);
+    // Audio cache: keyed by notebookId so switching tabs doesn't re-generate
+    const [audioCache, setAudioCache] = useState<Record<number, string>>({});
 
     // ── Drag-resize: use CSS variable via ref, no React state during drag ──
     const splitRef = useRef<HTMLDivElement>(null);
@@ -273,98 +280,171 @@ export default function CoursePage({ params }: Props) {
                 )}
 
                 {/* ── MAIN AREA ── */}
-                {sectionLoading ? (
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <div className="spinner" />
-                    </div>
-                ) : mainView === "concept-map" ? (
-                    <ConceptMapView courseId={courseId!} data={conceptMapData} onRegenerate={() => {
-                        api.generateCourseConceptMap(courseId!).then(loadConceptMap);
-                    }} />
-                ) : mainView === "tutorial" && tutorialQuestions ? (
-                    <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 60px" }}>
-                        <TutorialFlow
-                            questions={tutorialQuestions}
-                            notebookId={activeSection!.id}
-                            onFlag={async (nbId, stepNum) => {
-                                const res = await api.flagStep(nbId, stepNum);
-                                return res.hint;
-                            }}
-                        />
-                    </div>
-                ) : notebook ? (
-                    /* Split-pane notes view — DOM-direct drag, no re-render lag */
-                    activeSection?.source_type === "article" ? (
-                        /* Article / Website: just notes, no PDF panel */
-                        <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 40px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
-                                    Website Notes — {notebook.note_blocks.length} sections
-                                </div>
-                                {notebook.source_ref && (
-                                    <a href={notebook.source_ref} target="_blank" rel="noopener noreferrer"
-                                        style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", background: "var(--accent-light)", padding: "2px 10px", borderRadius: 99, border: "1px solid var(--accent)" }}>
-                                        Open website
-                                    </a>
-                                )}
-                            </div>
-                            {renderNoteBlocks(notebook, activeSlide, slideRefs)}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+                    {/* Content mode sub-header tab bar */}
+                    {activeSection && activeSection.source_type !== "tutorial" && (
+                        <div style={{
+                            display: "flex", gap: 0, borderBottom: "1px solid var(--border)",
+                            background: "#FAFAFC", flexShrink: 0,
+                        }}>
+                            {(["visual", "audio", "quiz"] as ContentMode[]).map((mode) => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setContentMode(mode)}
+                                    style={{
+                                        padding: "8px 20px", fontSize: 12, fontWeight: 600,
+                                        textTransform: "capitalize", cursor: "pointer",
+                                        background: contentMode === mode ? "white" : "transparent",
+                                        borderBottom: contentMode === mode ? "2px solid var(--accent)" : "2px solid transparent",
+                                        color: contentMode === mode ? "var(--accent)" : "var(--text-muted)",
+                                        border: "none", borderBottomWidth: 2, borderBottomStyle: "solid",
+                                        borderBottomColor: contentMode === mode ? "var(--accent)" : "transparent",
+                                    }}
+                                >
+                                    {mode === "visual" ? "Visual" : mode === "audio" ? "Audio" : "Quiz"}
+                                </button>
+                            ))}
                         </div>
-                    ) : (
-                        /* Slides: split pane with draggable divider */
-                        <div ref={splitRef} style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                            {/* PDF pane */}
-                            <div ref={leftPaneRef} style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                <div style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "white", flexShrink: 0 }}>
-                                    Source
-                                </div>
-                                <div style={{ flex: 1, overflow: "hidden", background: "#F1F5F9" }}>
-                                    {notebook.source_ref ? (
-                                        <iframe
-                                            src={`http://localhost:8000/pdf/${encodeURIComponent(notebook.source_ref.split("/").pop() || "")}`}
-                                            style={{ width: "100%", height: "100%", border: "none" }}
-                                            title="PDF"
-                                        />
-                                    ) : (
-                                        <div className="empty-state"><p>No preview</p></div>
+                    )}
+
+                    {/* Content area based on contentMode */}
+                    {contentMode === "audio" && activeSection && activeSection.source_type !== "tutorial" ? (
+                        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                            {/* PDF pane (same as visual) */}
+                            {activeSection.source_type === "slides" && notebook?.source_ref && (
+                                <>
+                                    <div style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                        <div style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "white", flexShrink: 0 }}>
+                                            Source
+                                        </div>
+                                        <div style={{ flex: 1, overflow: "hidden", background: "#F1F5F9" }}>
+                                            <iframe
+                                                src={`http://localhost:8000/pdf/${encodeURIComponent((notebook.source_ref || "").split("/").pop() || "")}`}
+                                                style={{ width: "100%", height: "100%", border: "none" }}
+                                                title="PDF"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ width: 5, background: "var(--border)", flexShrink: 0 }} />
+                                </>
+                            )}
+                            <div style={{ flex: 1, overflowY: "auto" }}>
+                                <AudioPlayer
+                                    notebookId={activeSection.id}
+                                    cachedAudioUrl={audioCache[activeSection.id] ?? null}
+                                    onAudioGenerated={(url) => setAudioCache(prev => ({ ...prev, [activeSection!.id]: url }))}
+                                    slideChunks={notebook ? notebook.note_blocks.map(b => ({
+                                        pageNum: b.page_num,
+                                        term: b.block.concept_box?.term || `Slide ${b.page_num}`,
+                                        definition: b.block.concept_box?.definition || "",
+                                        keyPoints: [
+                                            b.block.concept_box?.definition,
+                                            b.block.concept_box?.intuition,
+                                            b.block.concept_box?.why_it_matters,
+                                            ...(b.block.semantic_blocks || []).map(sb => sb.text),
+                                        ].filter(Boolean) as string[],
+                                    })) : []}
+                                />
+                            </div>
+                        </div>
+                    ) : contentMode === "quiz" && activeSection && activeSection.source_type !== "tutorial" ? (
+                        <div style={{ flex: 1, overflowY: "auto" }}>
+                            <QuizPanel notebookId={activeSection.id} />
+                        </div>
+                    ) : sectionLoading ? (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div className="spinner" />
+                        </div>
+                    ) : mainView === "concept-map" ? (
+                        <ConceptMapView courseId={courseId!} data={conceptMapData} onRegenerate={() => {
+                            api.generateCourseConceptMap(courseId!).then(loadConceptMap);
+                        }} />
+                    ) : mainView === "tutorial" && tutorialQuestions ? (
+                        <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 60px" }}>
+                            <TutorialFlow
+                                questions={tutorialQuestions}
+                                notebookId={activeSection!.id}
+                                onFlag={async (nbId, stepNum) => {
+                                    const res = await api.flagStep(nbId, stepNum);
+                                    return res.hint;
+                                }}
+                            />
+                        </div>
+                    ) : notebook ? (
+                        /* Split-pane notes view — DOM-direct drag, no re-render lag */
+                        activeSection?.source_type === "article" ? (
+                            /* Article / Website: just notes, no PDF panel */
+                            <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 40px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                                    <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
+                                        Website Notes — {notebook.note_blocks.length} sections
+                                    </div>
+                                    {notebook.source_ref && (
+                                        <a href={notebook.source_ref} target="_blank" rel="noopener noreferrer"
+                                            style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", background: "var(--accent-light)", padding: "2px 10px", borderRadius: 99, border: "1px solid var(--accent)" }}>
+                                            Open website
+                                        </a>
                                     )}
                                 </div>
+                                {renderNoteBlocks(notebook, activeSlide, slideRefs)}
                             </div>
-
-                            {/* Drag handle */}
-                            <div
-                                onMouseDown={startDrag}
-                                style={{
-                                    width: 5, cursor: "col-resize", flexShrink: 0,
-                                    background: "var(--border)", transition: "background 0.15s",
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                                onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = "var(--border)"; }}
-                            />
-
-                            {/* Notes pane */}
-                            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                                {notebook.note_blocks.length > 1 && (
-                                    <div className="slide-index">
-                                        {notebook.note_blocks.map((b, i) => (
-                                            <button key={b.id} className={`slide-index-btn ${activeSlide === i ? "active" : ""}`} onClick={() => scrollToSlide(i)} title={`Slide ${b.page_num}`}>
-                                                {b.page_num}
-                                            </button>
-                                        ))}
+                        ) : (
+                            /* Slides: split pane with draggable divider */
+                            <div ref={splitRef} style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                                {/* PDF pane */}
+                                <div ref={leftPaneRef} style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                                    <div style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "white", flexShrink: 0 }}>
+                                        Source
                                     </div>
-                                )}
-                                <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", padding: "14px 14px 40px" }}>
-                                    <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 12 }}>
-                                        AI Notes — {notebook.note_blocks.length} slides
+                                    <div style={{ flex: 1, overflow: "hidden", background: "#F1F5F9" }}>
+                                        {notebook.source_ref ? (
+                                            <iframe
+                                                src={`http://localhost:8000/pdf/${encodeURIComponent(notebook.source_ref.split("/").pop() || "")}`}
+                                                style={{ width: "100%", height: "100%", border: "none" }}
+                                                title="PDF"
+                                            />
+                                        ) : (
+                                            <div className="empty-state"><p>No preview</p></div>
+                                        )}
                                     </div>
-                                    {renderNoteBlocks(notebook, activeSlide, slideRefs)}
+                                </div>
+
+                                {/* Drag handle */}
+                                <div
+                                    onMouseDown={startDrag}
+                                    style={{
+                                        width: 5, cursor: "col-resize", flexShrink: 0,
+                                        background: "var(--border)", transition: "background 0.15s",
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
+                                    onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = "var(--border)"; }}
+                                />
+
+                                {/* Notes pane */}
+                                <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                                    {notebook.note_blocks.length > 1 && (
+                                        <div className="slide-index">
+                                            {notebook.note_blocks.map((b, i) => (
+                                                <button key={b.id} className={`slide-index-btn ${activeSlide === i ? "active" : ""}`} onClick={() => scrollToSlide(i)} title={`Slide ${b.page_num}`}>
+                                                    {b.page_num}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", padding: "14px 14px 40px" }}>
+                                        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 12 }}>
+                                            AI Notes — {notebook.note_blocks.length} slides
+                                        </div>
+                                        {renderNoteBlocks(notebook, activeSlide, slideRefs)}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )
-                ) : (
-                    <div className="empty-state"><p>Select a section from the left.</p></div>
-                )}
+                        )
+                    ) : (
+                        <div className="empty-state"><p>Select a section from the left.</p></div>
+                    )}
+                </div>{/* end MAIN AREA wrapper */}
             </div>
 
             <ChatPanel

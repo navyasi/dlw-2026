@@ -2,8 +2,8 @@ import type { ComparisonTable as T } from "@/lib/api";
 
 export default function ComparisonTable({ data }: { data: T }) {
     return (
-        <div style={{ overflowX: "auto", marginBottom: 16 }}>
-            <table className="comparison-table">
+        <div style={{ overflowX: "auto", marginBottom: 16 }} role="region" aria-label="Comparison table">
+            <table className="comparison-table" aria-label="Comparison of concepts">
                 <thead>
                     <tr>
                         {data.headers.map((h, i) => <th key={i}>{h}</th>)}

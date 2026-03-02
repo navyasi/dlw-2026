@@ -28,6 +28,9 @@ from backend.database import create_tables
 from backend.routers import concepts, notebook, tutorial
 from backend.routers import course as course_router
 from backend.routers import chat as chat_router
+from backend.routers import audio as audio_router
+from backend.routers import quiz as quiz_router
+from backend.routers import recall as recall_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -74,6 +77,9 @@ app.include_router(concepts.router)
 app.include_router(tutorial.router)
 app.include_router(course_router.router)
 app.include_router(chat_router.router)
+app.include_router(audio_router.router)
+app.include_router(quiz_router.router)
+app.include_router(recall_router.router)
 
 
 @app.get("/health")
