@@ -120,6 +120,12 @@
 
         <!-- Main Content Area -->
         <main class="ns-main-content">
+            <!-- VARK-R Detection Banner (hidden until R type confirmed) -->
+            <div id="ns-vark-r-flag" class="ns-vark-tip hidden" style="display:none;">
+                📖 <strong>Reading/Writing learner detected</strong> — your study tips have been switched to R-mode.
+                <button onclick="document.getElementById('ns-vark-r-flag').style.display='none';" style="float:right;background:none;border:none;cursor:pointer;color:inherit;font-size:1rem;">✕</button>
+            </div>
+
             <!-- Top Header (Minimal) -->
             <header class="ns-main-header">
                 <div class="ns-header-left">
@@ -223,8 +229,9 @@
                         <div class="ns-profile-sidebar">
                             <div class="ns-card ns-vark-card">
                                 <h3>Learning Style</h3>
-                                <div class="ns-vark-result">🔍 Visual (45%)</div>
-                                <p>You learn best through diagrams, charts, and spatial organization.</p>
+                                <div id="ns-vark-result" class="ns-vark-result">🔍 Visual</div>
+                                <p id="ns-vark-desc">You learn best through diagrams, charts, and spatial organization.</p>
+                                <div id="ns-vark-confidence" style="font-size:0.78rem; color:var(--ns-text-muted); margin-top:6px;">Detecting via cursor behavior…</div>
                             </div>
                             <div class="ns-card ns-strengths-card">
                                 <h3>Strengths</h3>
@@ -378,6 +385,7 @@
     </div>
 
     <script src="app.js"></script>
+    <script type="module" src="vark_integration.js"></script>
 </body>
 
 </html>
