@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Course } from "@/lib/api";
 
+// Skip NTULearn entry if coming from the platform itself
+const PLATFORM_PARAM = "platform";
+
 const BASE = "http://localhost:8000";
 
 export default function HomePage() {
@@ -10,6 +13,14 @@ export default function HomePage() {
   const [status, setStatus] = useState<"loading" | "seeding" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Redirect to NTULearn unless the user already came from there
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has(PLATFORM_PARAM)) {
+      window.location.replace("/ntulearn/index.html");
+    }
+  }, []);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
