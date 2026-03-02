@@ -3,8 +3,11 @@
 ###after spitting nto multiple files
 
 import os
+import sys
+import json
+from datetime import date, timedelta
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
@@ -12,7 +15,12 @@ from pypdf import PdfReader
 from openai import OpenAI
 from insights import generate_weekly_report
 from lecture import generate_lecture_script, text_to_speech_mp3
-from kinesthetics import generate_kinesthetic_plan, compute_kms,compute_topic_mastery
+from kinesthetics import generate_kinesthetic_plan, compute_kms, compute_topic_mastery
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from learning_model import KnowledgeGraph, MasteryEngine, QuizResponse
+from scheduler import TimetableEngine, AvailabilityWindow
+from bridge import load_curriculum_meta, mastery_to_concepts_payload, grade_to_quiz_responses
 # Optional: load from .env if you use it
 try:
     from dotenv import load_dotenv
@@ -121,6 +129,193 @@ async def weekly_report(payload: dict = Body(...)):
 #         raise
 #     except Exception as e:
 #         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /integrated-weekly  — full loop: quiz results → mastery → report + timetable
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CURRICULUM_META = None  # lazy-loaded once
+
+def _get_curriculum_meta():
+    global _CURRICULUM_META
+    if _CURRICULUM_META is None:
+        _CURRICULUM_META = load_curriculum_meta()
+    return _CURRICULUM_META
+
+
+def _build_engine(openai_api_key: Optional[str] = None) -> tuple:
+    """Initialise a fresh KnowledgeGraph + MasteryEngine from the curriculum file."""
+    curriculum_path = os.path.join(os.path.dirname(__file__), "data", "sample_curriculum.json")
+    with open(curriculum_path) as f:
+        curricula = json.load(f)
+
+    kg = KnowledgeGraph()
+    for curriculum in curricula:
+        kg.load_curriculum(curriculum)
+
+    engine = MasteryEngine(
+        knowledge_graph=kg,
+        openai_api_key=openai_api_key or os.getenv("OPENAI_API_KEY"),
+        openai_model="gpt-4o-mini",
+    )
+    return engine, kg
+
+
+@app.post("/integrated-weekly")
+async def integrated_weekly(payload: dict = Body(...)):
+    """
+    Full integration endpoint wiring Person 1 (mastery engine) +
+    Person 4 (Sia — weekly analytics) + Person 3 (Chavi — timetable).
+
+    Request body:
+    {
+      "student_id":             "student_42",
+      "subject":                "deep_learning",
+      "exam_weights":           {"backprop": 0.25, "chain_rule": 0.20, ...},
+      "days_until_exam":        14,
+      "current_weekly_minutes": 240,       // optional, default 240
+      "topic_mastery":          {"backprop": 0.45, "chain_rule": 0.30, ...},  // optional — from /grade-kinesthetic
+      "quiz_responses": [       // optional — raw quiz history (overrides topic_mastery)
+        {"concept_id": "backprop", "correct": false, "response_time_seconds": 90, "error_depth": 0.8}
+      ],
+      "availability": [         // optional — defaults to Mon-Fri 3h, Sat-Sun 4h
+        {"day_of_week": 0, "available_hours": 3.0}, ...
+      ]
+    }
+
+    Response:
+    {
+      "weekly_report":   { ... },   // Sia's analytics
+      "study_plan":      { ... },   // Chavi's timetable (7 days)
+      "todays_schedule": { ... }    // today's Pomodoro blocks
+    }
+    """
+    try:
+        student_id = payload.get("student_id", "student_01")
+        subject = payload.get("subject", "deep_learning")
+        exam_weights: dict = payload.get("exam_weights", {})
+        days_until_exam = int(payload.get("days_until_exam", 14))
+        current_weekly_minutes = int(payload.get("current_weekly_minutes", 240))
+        topic_mastery: dict = payload.get("topic_mastery", {})
+        raw_quiz_responses: list = payload.get("quiz_responses", [])
+
+        if not exam_weights:
+            raise HTTPException(status_code=422, detail="exam_weights is required")
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        engine, kg = _build_engine(api_key)
+
+        # 1. Ingest quiz results into the mastery engine
+        #    Priority: raw quiz_responses > topic_mastery from kinesthetic grader
+        if raw_quiz_responses:
+            responses = [
+                QuizResponse(
+                    student_id=student_id,
+                    concept_id=r["concept_id"],
+                    subject=subject,
+                    correct=bool(r.get("correct", False)),
+                    response_time_seconds=float(r.get("response_time_seconds", 60.0)),
+                    error_depth=float(r.get("error_depth", 0.0)),
+                )
+                for r in raw_quiz_responses
+            ]
+            engine.update_from_quiz(responses)
+        elif topic_mastery:
+            # Convert Sia's topic_mastery output → QuizResponse objects
+            responses = grade_to_quiz_responses(topic_mastery, student_id, subject)
+            engine.update_from_quiz(responses)
+
+        # 2. Get current mastery state (with forgetting decay applied)
+        mastery_state = engine.get_mastery_state(student_id, subject)
+
+        # 3. Build Sia's concepts payload and run weekly analytics report
+        curriculum_meta = _get_curriculum_meta()
+        concepts_payload = mastery_to_concepts_payload(mastery_state, exam_weights, curriculum_meta)
+        weekly_report = generate_weekly_report(
+            concepts_raw=concepts_payload,
+            current_weekly_minutes=current_weekly_minutes,
+        )
+
+        # 4. Build timetable (Chavi's scheduler)
+        availability_raw = payload.get("availability", [])
+        if availability_raw:
+            availability = [
+                AvailabilityWindow(
+                    day_of_week=int(a["day_of_week"]),
+                    available_hours=float(a["available_hours"]),
+                )
+                for a in availability_raw
+            ]
+        else:
+            # Sensible defaults: Mon-Fri 3h, Sat-Sun 4h
+            availability = [
+                AvailabilityWindow(day_of_week=0, available_hours=3.0),
+                AvailabilityWindow(day_of_week=1, available_hours=3.0),
+                AvailabilityWindow(day_of_week=2, available_hours=3.0),
+                AvailabilityWindow(day_of_week=3, available_hours=3.0),
+                AvailabilityWindow(day_of_week=4, available_hours=2.5),
+                AvailabilityWindow(day_of_week=5, available_hours=4.0),
+                AvailabilityWindow(day_of_week=6, available_hours=4.0),
+            ]
+
+        timetable = TimetableEngine(
+            mastery_engine=engine,
+            knowledge_graph=kg,
+            openai_api_key=api_key,
+        )
+
+        exam_date = date.today() + timedelta(days=days_until_exam)
+        plan = timetable.generate_plan(
+            student_id=student_id,
+            subjects=[subject],
+            exam_weights_by_subject={subject: exam_weights},
+            exam_date=exam_date,
+            availability=availability,
+        )
+
+        todays_sched = timetable.get_todays_schedule(student_id, plan)
+
+        # 5. Serialise the study plan
+        def serialise_block(b) -> dict:
+            return {
+                "block_type": b.block_type,
+                "duration_minutes": b.duration_minutes,
+                "concept_ids": list(b.concept_ids),
+                "priority_score": round(float(b.priority_score), 4),
+                "difficulty": round(float(b.difficulty), 3),
+            }
+
+        def serialise_day(d) -> dict:
+            return {
+                "date": str(d.date),
+                "day_of_week": d.date.strftime("%A"),
+                "total_study_minutes": d.total_study_minutes,
+                "blocks": [serialise_block(b) for b in d.blocks],
+            }
+
+        study_plan_out = {
+            "exam_date": str(exam_date),
+            "days_until_exam": days_until_exam,
+            "total_days": len(plan.days),
+            "days": [serialise_day(d) for d in plan.days],
+        }
+
+        todays_out = serialise_day(todays_sched) if todays_sched else None
+
+        return {
+            "student_id": student_id,
+            "subject": subject,
+            "weekly_report": weekly_report,
+            "study_plan": study_plan_out,
+            "todays_schedule": todays_out,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def get_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
