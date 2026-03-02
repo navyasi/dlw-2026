@@ -1,0 +1,724 @@
+/* ============================================================
+   Study Mode — Global Design System
+   Light mode: dot-grid canvas, card nodes, Inter typography
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* --- CSS Custom Properties --- */
+:root {
+  --bg: #F6F8FC;
+  --bg-pane: #FFFFFF;
+  --border: #E2E8F0;
+  --text: #1E293B;
+  --text-muted: #64748B;
+  --accent: #6366F1;
+  --accent-light: #EEF2FF;
+  --radius-card: 12px;
+  --radius-sm: 8px;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-pane: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* Semantic tag colours */
+  --tag-definition: #60A5FA;
+  /* blue */
+  --tag-definition-bg: #EFF6FF;
+  --tag-example: #34D399;
+  /* green */
+  --tag-example-bg: #F0FDF4;
+  --tag-exception: #F472B6;
+  /* pink */
+  --tag-exception-bg: #FDF2F8;
+  --tag-trap: #FB923C;
+  /* orange */
+  --tag-trap-bg: #FFF7ED;
+
+  /* Mastery node colours */
+  --mastery-low: #CBD5E1;
+  --mastery-mid: #93C5FD;
+  --mastery-high: #34D399;
+}
+
+/* --- Base Reset --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* Dot-grid background pattern */
+body {
+  background-image: radial-gradient(circle, #CBD5E1 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* --- Layout Helpers --- */
+.pane {
+  background: var(--bg-pane);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pane);
+  overflow: hidden;
+}
+
+.card {
+  background: var(--bg-pane);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+/* --- Top Navigation --- */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 32px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topnav .logo {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+
+.topnav nav {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.topnav nav a {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.topnav nav a:hover,
+.topnav nav a.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.88;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+
+.btn-secondary:hover {
+  background: var(--accent-light);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* --- Badge / Tag --- */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.badge-slides {
+  background: #EFF6FF;
+  color: #3B82F6;
+}
+
+.badge-article {
+  background: #F0FDF4;
+  color: #22C55E;
+}
+
+.badge-tutorial {
+  background: #FFF7ED;
+  color: #F97316;
+}
+
+/* --- Semantic Blocks --- */
+.semantic-block {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid;
+  margin-bottom: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.semantic-block .tag-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.semantic-block.definition {
+  background: var(--tag-definition-bg);
+  border-color: var(--tag-definition);
+}
+
+.semantic-block.definition .tag-label {
+  color: var(--tag-definition);
+}
+
+.semantic-block.example {
+  background: var(--tag-example-bg);
+  border-color: var(--tag-example);
+}
+
+.semantic-block.example .tag-label {
+  color: var(--tag-example);
+}
+
+.semantic-block.exception {
+  background: var(--tag-exception-bg);
+  border-color: var(--tag-exception);
+}
+
+.semantic-block.exception .tag-label {
+  color: var(--tag-exception);
+}
+
+.semantic-block.trap {
+  background: var(--tag-trap-bg);
+  border-color: var(--tag-trap);
+}
+
+.semantic-block.trap .tag-label {
+  color: var(--tag-trap);
+}
+
+/* --- Concept Box --- */
+.concept-box {
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  background: var(--accent-light);
+  margin-bottom: 16px;
+}
+
+.concept-box h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.concept-box .meta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.concept-box .meta-item {
+  background: white;
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.concept-box .meta-item .label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+/* --- Flow Diagram Container --- */
+.flow-diagram-card {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  background: var(--bg-pane);
+  text-align: center;
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+.flow-diagram-card h4 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* --- Comparison Table --- */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.comparison-table th {
+  background: var(--accent);
+  color: white;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.comparison-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comparison-table tr:nth-child(even) td {
+  background: #F8FAFC;
+}
+
+/* --- Worked Examples --- */
+.worked-example {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.worked-example .ex-header {
+  background: #F8FAFC;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.worked-example .ex-steps {
+  padding: 14px 16px;
+  list-style: none;
+  counter-reset: steps;
+}
+
+.worked-example .ex-steps li {
+  counter-increment: steps;
+  padding: 6px 0 6px 28px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.worked-example .ex-steps li::before {
+  content: counter(steps);
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.worked-example .ex-result {
+  background: #F0FDF4;
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #16A34A;
+}
+
+/* --- Tutorial Step --- */
+.tutorial-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+  background: var(--bg-pane);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.tutorial-step:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.tutorial-step.error {
+  border-color: #EF4444;
+  background: #FEF2F2;
+}
+
+.tutorial-step .step-num {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorial-step.error .step-num {
+  background: #EF4444;
+}
+
+.tutorial-step .step-body {
+  flex: 1;
+}
+
+.tutorial-step .step-desc {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.tutorial-step .step-formula {
+  margin-top: 6px;
+  background: #F8FAFC;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.tutorial-step .hint-bubble {
+  margin-top: 10px;
+  background: #FEF3C7;
+  border: 1px solid #FCD34D;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #92400E;
+}
+
+/* Dashed connector between tutorial steps */
+.step-connector {
+  width: 2px;
+  height: 16px;
+  border-left: 2px dashed var(--border);
+  margin: 2px 0 2px 23px;
+}
+
+/* --- Dyslexia Mode --- */
+html.dyslexia {
+  font-family: 'Arial', sans-serif;
+}
+
+html.dyslexia body {
+  font-size: 18px;
+  line-height: 2.0;
+  letter-spacing: 0.1em;
+  word-spacing: 0.25em;
+}
+
+html.dyslexia .card,
+html.dyslexia .semantic-block,
+html.dyslexia .concept-box,
+html.dyslexia .worked-example,
+html.dyslexia .tutorial-step {
+  padding: 24px 28px;
+  margin-bottom: 20px;
+}
+
+html.dyslexia .semantic-block {
+  border-left-width: 6px;
+}
+
+html.dyslexia p,
+html.dyslexia li {
+  max-width: 680px;
+}
+
+/* --- Loading / Empty States --- */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 60px auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+}
+
+/* --- Toggle Switch (dyslexia mode) --- */
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle.on {
+  background: var(--accent);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle.on::after {
+  transform: translateX(18px);
+}
+
+/* --- Split pane overrides --- */
+[data-panel-group-direction="horizontal"] {
+  height: calc(100vh - 56px);
+}
+
+[data-panel-resize-handle-id] {
+  width: 6px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  transition: background 0.2s;
+}
+
+[data-panel-resize-handle-id]:hover {
+  background: var(--accent-light);
+}
+
+[data-panel-resize-handle-id]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 48px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+/* --- Notebook slide index sidebar --- */
+.slide-index {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  width: 56px;
+  background: #FAFAFC;
+  overflow-y: auto;
+}
+
+.slide-index-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-origin: center;
+}
+
+.slide-index-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  z-index: 10;
+}
+
+.slide-index-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  transform: scale(1.3);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+  z-index: 10;
+}
+
+/* --- Home / Dashboard --- */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 32px;
+}
+
+.notebook-card {
+  background: var(--bg-pane);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s, transform 0.15s;
+  cursor: pointer;
+}
+
+.notebook-card:hover {
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.12);
+  transform: translateY(-2px);
+}
+
+.notebook-card .nb-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 10px 0 4px;
+  color: var(--text);
+}
+
+.notebook-card .nb-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.notebook-card .nb-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Hide Mermaid's global error nodes that get injected at the top of the body */
+[id^="dmermaid-"] {
+  display: none !important;
+}

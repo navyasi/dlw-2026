@@ -333,3 +333,9 @@ async def generate_lecture(file: UploadFile = File(...)):
         media_type="audio/mpeg",
         headers={"Content-Disposition": "attachment; filename=lecture.mp3"},
     )
+def main():
+    print("Hello from dlw-2026!")
+
+
+if __name__ == "__main__":
+    main()
