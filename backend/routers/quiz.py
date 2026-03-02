@@ -33,16 +33,24 @@ class GradeRequest(BaseModel):
 async def generate_quiz(notebook_id: int):
     """
     Generate a kinesthetic learning plan (activities + quiz) from a notebook's content.
+    Or return existing if already generated.
     """
     from sqlalchemy import select
-    from backend.database import AsyncSessionLocal, Notebook
+    from backend.database import AsyncSessionLocal, Notebook, KinestheticPlan
     from backend.pdf_utils import extract_full_text
     from kinesthetics import generate_kinesthetic_plan
+    import json
 
     async with AsyncSessionLocal() as db:
         nb = await db.get(Notebook, notebook_id)
         if not nb:
             raise HTTPException(status_code=404, detail="Notebook not found")
+
+        # Check if plan already exists
+        existing = await db.execute(select(KinestheticPlan).where(KinestheticPlan.notebook_id == notebook_id))
+        plan_record = existing.scalar_one_or_none()
+        if plan_record:
+            return json.loads(plan_record.plan_json)
 
     # Get text from source
     text = ""
@@ -65,7 +73,6 @@ async def generate_quiz(notebook_id: int):
         # Fallback: use the stored note_blocks text
         from backend.database import NoteBlock
         from sqlalchemy import select as sel
-        import json
         async with AsyncSessionLocal() as db:
             result = await db.execute(sel(NoteBlock).where(NoteBlock.notebook_id == notebook_id))
             blocks = result.scalars().all()
@@ -85,6 +92,13 @@ async def generate_quiz(notebook_id: int):
 
     client = _get_openai_client()
     plan = generate_kinesthetic_plan(client, text)
+
+    # Save generated plan to DB
+    async with AsyncSessionLocal() as db:
+        new_plan = KinestheticPlan(notebook_id=notebook_id, plan_json=json.dumps(plan))
+        db.add(new_plan)
+        await db.commit()
+
     return plan
 
 

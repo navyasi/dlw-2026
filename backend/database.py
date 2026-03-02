@@ -63,7 +63,7 @@ class Notebook(Base):
     edges = relationship("Edge", back_populates="notebook", cascade="all, delete-orphan")
     attempts = relationship("Attempt", back_populates="notebook", cascade="all, delete-orphan")
     tutorial_flow = relationship("TutorialFlow", back_populates="notebook", uselist=False, cascade="all, delete-orphan")
-
+    kinesthetic_plan = relationship("KinestheticPlan", back_populates="notebook", uselist=False, cascade="all, delete-orphan")
 
 class NoteBlock(Base):
     __tablename__ = "note_blocks"
@@ -109,6 +109,16 @@ class TutorialFlow(Base):
 
     notebook = relationship("Notebook", back_populates="tutorial_flow")
 
+
+class KinestheticPlan(Base):
+    """Stores the generated Kinesthetic plan (activities + quiz) for a notebook."""
+    __tablename__ = "kinesthetic_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    notebook_id = Column(Integer, ForeignKey("notebooks.id"), nullable=False, unique=True)
+    plan_json = Column(Text, nullable=False)   # JSON string
+
+    notebook = relationship("Notebook", back_populates="kinesthetic_plan")
 
 class Attempt(Base):
     __tablename__ = "attempts"

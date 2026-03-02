@@ -67,6 +67,7 @@ export default function QuizPanel({ notebookId }: Props) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [completedActivities, setCompletedActivities] = useState<string[]>([]);
     const [scores, setScores] = useState<Scores | null>(null);
     const [grading, setGrading] = useState(false);
 
@@ -91,7 +92,7 @@ export default function QuizPanel({ notebookId }: Props) {
         try {
             const result = await api.gradeQuiz({
                 plan,
-                completed_activity_ids: [],
+                completed_activity_ids: completedActivities,
                 quiz_answers: answers,
             });
             setScores(result);
@@ -100,6 +101,12 @@ export default function QuizPanel({ notebookId }: Props) {
         } finally {
             setGrading(false);
         }
+    };
+
+    const resetAnswerProgress = () => {
+        setScores(null);
+        setAnswers({});
+        setCompletedActivities([]);
     };
 
     const setAnswer = (id: string, value: string) => {
@@ -142,8 +149,60 @@ export default function QuizPanel({ notebookId }: Props) {
         <div style={{ padding: 24, overflowY: "auto", maxHeight: "100%" }}>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{plan.title}</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 24 }}>
-                {plan.quiz.mcq.length} multiple choice + {plan.quiz.short.length} short answer
+                {plan.activities?.length || 0} activities • {plan.quiz.mcq.length} multiple choice • {plan.quiz.short.length} short answer
             </div>
+
+            {/* Activities Section */}
+            {plan.activities && plan.activities.length > 0 && (
+                <div style={{ marginBottom: 32 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent)", marginBottom: 16 }}>
+                        Kinesthetic Activities
+                    </div>
+                    {plan.activities.map((act, i) => {
+                        const isChecked = completedActivities.includes(act.id);
+                        return (
+                            <div key={act.id} className="card" style={{ marginBottom: 14, padding: 16 }}>
+                                <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: scores ? "default" : "pointer" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                            if (scores) return;
+                                            if (e.target.checked) {
+                                                setCompletedActivities(prev => [...prev, act.id]);
+                                            } else {
+                                                setCompletedActivities(prev => prev.filter(id => id !== act.id));
+                                            }
+                                        }}
+                                        disabled={!!scores}
+                                        style={{ marginTop: 4, width: 16, height: 16, accentColor: "var(--accent)" }}
+                                    />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                                            {i + 1}. {act.name}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, display: "flex", gap: 8 }}>
+                                            <span style={{ background: "#F3F4F6", padding: "2px 6px", borderRadius: 4 }}>Time: {act.estimated_minutes} min</span>
+                                            <span style={{ background: "#F3F4F6", padding: "2px 6px", borderRadius: 4, textTransform: "capitalize" }}>Diff: {act.difficulty}</span>
+                                        </div>
+                                        <div style={{ fontSize: 13, marginBottom: 8 }}>
+                                            <strong>Concept:</strong> {act.concept}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                                            <strong>Steps:</strong>
+                                            <ul style={{ paddingLeft: 20, marginTop: 4, marginBottom: 0 }}>
+                                                {act.steps.map((s: string, si: number) => (
+                                                    <li key={si} style={{ marginBottom: 2 }}>{s}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* MCQ Section */}
             <div style={{ marginBottom: 32 }}>
@@ -244,8 +303,8 @@ export default function QuizPanel({ notebookId }: Props) {
                     <button className="btn btn-primary" style={{ padding: "10px 24px" }} onClick={submit} disabled={grading}>
                         {grading ? "Grading..." : "Submit Answers"}
                     </button>
-                    <button className="btn btn-ghost" style={{ padding: "10px 16px", fontSize: 12 }} onClick={generate}>
-                        New Quiz
+                    <button className="btn btn-ghost" style={{ padding: "10px 16px", fontSize: 12 }} onClick={resetAnswerProgress}>
+                        Reset Progress
                     </button>
                 </div>
             ) : (
@@ -266,7 +325,7 @@ export default function QuizPanel({ notebookId }: Props) {
                             </div>
                         ))}
                     </div>
-                    <button className="btn btn-primary" style={{ padding: "10px 24px" }} onClick={generate}>
+                    <button className="btn btn-primary" style={{ padding: "10px 24px" }} onClick={resetAnswerProgress}>
                         Try Again
                     </button>
                 </div>
