@@ -11,3 +11,4 @@ __pycache__/
 # Node
 node_modules/
 .next/
+main_remote.py
