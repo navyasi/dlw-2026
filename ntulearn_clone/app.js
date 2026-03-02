@@ -504,17 +504,7 @@ function renderKALayout() {
             } else {
                 innerHtml = `<div class="ns-reading-content">${activeLesson.content.replace(/\n/g, '<br>')}</div>`;
             }
-            // VARK tip for the active schedule item
-        const schedItem = state.northStarSchedule.find(s => s.id === state.selectedScheduleItemId);
-        const varkMode = state.selectedVarkMode;
-        const varkTip = schedItem?.varkRecommendations?.[varkMode]?.tip;
-        if (varkTip) {
-            const tipClass = varkMode === 'reading' ? 'ns-vark-tip' : 'ns-vark-tip';
-            innerHtml += `<div id="ns-vark-inline-tip" class="${tipClass}" style="margin-top:16px;">💡 ${varkTip}</div>`;
-        } else {
-            innerHtml += `<div id="ns-vark-inline-tip" style="display:none;"></div>`;
-        }
-        innerHtml += `<br><button class="ns-btn-primary" onclick="completeLesson()">${activeLesson.status === 'done' ? 'Completed' : 'Mark Complete'}</button>`;
+            innerHtml += `<br><button class="ns-btn-primary" onclick="completeLesson()">${activeLesson.status === 'done' ? 'Completed' : 'Mark Complete'}</button>`;
             document.getElementById('ns-content-inner').innerHTML = innerHtml;
         }
 
@@ -967,74 +957,6 @@ async function fetchAndApplyBackendData() {
 
     } catch (e) {
         console.warn('Backend not reachable, using dummy data:', e);
-    }
-}
-
-/* =========================================================================
-   VARK CURSOR TRACKING INTEGRATION
-   Called by vark_integration.js (ES module) every 15 s.
-   result = { vark_type: "R" | null, confidence: 0.0–1.0, attention: 0.0–1.0 }
-   ========================================================================= */
-
-const VARK_LABELS = {
-    visual:      { emoji: '🔍', label: 'Visual',          desc: 'You learn best through diagrams, charts, and spatial organization.' },
-    audio:       { emoji: '🎧', label: 'Auditory',        desc: 'You retain information better by listening and discussing ideas aloud.' },
-    reading:     { emoji: '📖', label: 'Reading / Writing', desc: 'You absorb and retain material best through reading and written notes.' },
-    kinesthetic: { emoji: '🤝', label: 'Kinesthetic',     desc: 'You learn by doing — practice problems and hands-on activities suit you best.' },
-};
-
-window.onVarkUpdate = function(result) {
-    const { vark_type, confidence, attention } = result;
-
-    // Map tracker output → internal mode key
-    const detectedMode = vark_type === 'R' ? 'reading' : state.selectedVarkMode;
-
-    // Only switch if confidence is meaningful
-    if (vark_type === 'R' && confidence > 0.5) {
-        state.selectedVarkMode = 'reading';
-        _showVarkRFlag();
-    }
-
-    // Update the profile VARK card
-    const meta = VARK_LABELS[detectedMode] || VARK_LABELS.visual;
-    const pct  = Math.round(confidence * 100);
-
-    const resultEl = document.getElementById('ns-vark-result');
-    if (resultEl) resultEl.textContent = `${meta.emoji} ${meta.label}${pct > 0 ? ` (${pct}%)` : ''}`;
-
-    const descEl = document.getElementById('ns-vark-desc');
-    if (descEl) descEl.textContent = meta.desc;
-
-    const confEl = document.getElementById('ns-vark-confidence');
-    if (confEl) {
-        const attPct = Math.round(attention * 100);
-        confEl.textContent = `Attention: ${attPct}% · Detected via cursor behaviour`;
-    }
-
-    // Refresh deep dive VARK tip if that view is active
-    _refreshVarkTip();
-};
-
-function _showVarkRFlag() {
-    const flag = document.getElementById('ns-vark-r-flag');
-    if (flag && flag.style.display === 'none') {
-        flag.style.display = 'block';
-        flag.classList.remove('hidden');
-    }
-}
-
-/** Inject the per-item VARK tip into the content viewer when in Deep Dive. */
-function _refreshVarkTip() {
-    const tipEl = document.getElementById('ns-vark-inline-tip');
-    if (!tipEl) return;
-
-    const item = state.northStarSchedule.find(s => s.id === state.selectedScheduleItemId);
-    const mode = state.selectedVarkMode;
-    if (item && item.varkRecommendations && item.varkRecommendations[mode]) {
-        tipEl.textContent = `💡 ${item.varkRecommendations[mode].tip}`;
-        tipEl.style.display = 'block';
-    } else {
-        tipEl.style.display = 'none';
     }
 }
 
