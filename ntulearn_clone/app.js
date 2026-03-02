@@ -644,11 +644,9 @@ function renderCalendar() {
     const weekStart = state.calendarView.weekStart;
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-    // match your screenshot-ish range
     const dayStartMin = 6 * 60;   // 06:00
-    const dayEndMin = 19 * 60;    // 19:00
-    const pxPerMin = 1.05;
-    const gridHeight = (dayEndMin - dayStartMin) * pxPerMin;
+    const dayEndMin = 22 * 60;    // 22:00
+    const PX_PER_HOUR = 64;
 
     const now = new Date();
     const isSameDay = (a, b) =>
@@ -658,102 +656,154 @@ function renderCalendar() {
 
     // hours for grid lines + labels
     const hours = [];
-    for (let t = dayStartMin; t <= dayEndMin; t += 60) hours.push(t);
+    for (let t = dayStartMin; t < dayEndMin; t += 60) hours.push(t);
 
     // Header (month + controls)
     const headerHtml = `
-      <div class="ns-cal2-header">
-        <div class="ns-cal2-title">${fmtMonthYear(weekStart)}</div>
-        <div class="ns-cal2-controls">
-          <button class="ns-cal2-btn" id="ns-cal2-prev" aria-label="Previous week">‹</button>
-          <button class="ns-cal2-btn primary" id="ns-cal2-today">Today</button>
-          <button class="ns-cal2-btn" id="ns-cal2-next" aria-label="Next week">›</button>
+      <div class="cal-week__header">
+        <h1 class="cal-week__title">${fmtMonthYear(weekStart)}</h1>
+        <div class="cal-week__nav">
+          <button class="cal-week__nav-btn" id="ns-cal2-prev" aria-label="Previous week">‹</button>
+          <button class="cal-week__nav-btn cal-week__nav-btn--today" id="ns-cal2-today">Today</button>
+          <button class="cal-week__nav-btn" id="ns-cal2-next" aria-label="Next week">›</button>
         </div>
       </div>
     `;
 
     // Day header row
     const dayHeaderHtml = `
-      <div class="ns-cal2-dayhead">
-        <div class="ns-cal2-timecol-spacer"></div>
+      <div class="cal-week__days">
+        <div class="cal-week__days-spacer"></div>
         ${days.map((d, idx) => {
-        const label = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
-        const active = isSameDay(d, now) ? 'active' : '';
+        const label = d.toLocaleDateString(undefined, { weekday: 'short' }).substring(0, 3);
+        const activeClass = isSameDay(d, now) ? 'cal-week__day-header--today' : '';
+        const numActive = isSameDay(d, now) ? 'cal-week__day-num--today' : '';
         return `
-              <div class="ns-cal2-daycell ${active}" data-day="${idx}">
-                <div class="ns-cal2-dayname">${label}</div>
-                <div class="ns-cal2-daynum">${fmtDayNum(d)}</div>
+              <div class="cal-week__day-header ${activeClass}">
+                <span class="cal-week__day-name">${label}</span>
+                <span class="cal-week__day-num ${numActive}">${fmtDayNum(d)}</span>
               </div>
             `;
     }).join('')}
-      </div>
-    `;
-
-    // Time label column
-    const timeColHtml = `
-      <div class="ns-cal2-timecol" style="height:${gridHeight}px">
-        ${hours.map((t) => `
-          <div class="ns-cal2-timelabel" style="top:${(t - dayStartMin) * pxPerMin}px">${minToLabel(t)}</div>
-        `).join('')}
       </div>
     `;
 
     // Grid with day columns
     const gridHtml = `
-      <div class="ns-cal2-gridwrap" style="height:${gridHeight}px">
-        ${Array.from({ length: 7 }, (_, dayIdx) => {
-        const hourLines = hours.map((t) =>
-            `<div class="ns-cal2-hourline" style="top:${(t - dayStartMin) * pxPerMin}px"></div>`
-        ).join('');
+      <div class="cal-week__scroll">
+        <div class="cal-grid" role="grid">
+          <div class="cal-grid__hours">
+            ${hours.map((t) => `
+              <div class="cal-grid__hour-label" style="height:${PX_PER_HOUR}px">${minToLabel(t)}</div>
+            `).join('')}
+          </div>
 
-        const events = (state.calendarBlocks || [])
+          ${Array.from({ length: 7 }, (_, dayIdx) => {
+        const isToday = isSameDay(days[dayIdx], now);
+
+        const bgGrid = `
+            <div class="cal-grid__bg">
+            ${hours.map((h) => `
+                <div class="cal-grid__slot" style="height:${PX_PER_HOUR}px" onclick="openCalModal(${dayIdx}, null, ${h})" role="button">
+                <div class="cal-grid__slot-hover">+ Add Event</div>
+                </div>
+            `).join('')}
+            </div>
+        `;
+
+        const eventsHtml = (state.calendarBlocks || [])
             .filter(e => Number(e.day) === dayIdx)
             .map(e => {
                 const start = Math.max(e.startMin ?? dayStartMin, dayStartMin);
                 const end = Math.min(e.endMin ?? (start + 60), dayEndMin);
-
-                const top = (start - dayStartMin) * pxPerMin;
-                const height = Math.max(28, (end - start) * pxPerMin);
+                const top = ((start - dayStartMin) / 60) * PX_PER_HOUR;
+                const height = Math.max(24, ((end - start) / 60) * PX_PER_HOUR - 2);
 
                 const kind = e.kind || 'study';
-                const timeRange = `${minToHHMM(start)} - ${minToHHMM(end)}`;
+                const missed = kind === 'missed';
+                const bg = missed ? 'rgba(254,226,226,0.5)' : (kind === 'lecture' ? '#DBEAFE' : kind === 'tutorial' ? '#EDE9FE' : kind === 'busy' ? '#F1F5F9' : '#DCFCE7');
+                const bColor = missed ? '#EF4444' : (kind === 'lecture' ? '#3B82F6' : kind === 'tutorial' ? '#8B5CF6' : kind === 'busy' ? '#94A3B8' : '#22C55E');
+                const tColor = missed ? '#991B1B' : (kind === 'lecture' ? '#1E40AF' : kind === 'tutorial' ? '#5B21B6' : kind === 'busy' ? '#334155' : '#166534');
+                const badge = e.code || kind.toUpperCase();
 
                 return `
-                      <div class="ns-cal2-event kind-${kind}"
-                           style="top:${top}px; height:${height}px"
-                           onclick="openCalModal(${dayIdx}, '${e.id}'); event.stopPropagation();">
-                        <div class="ns-cal2-event-time">${timeRange}</div>
-                        <div class="ns-cal2-event-title">${e.title || 'Untitled'}</div>
-                        <div class="ns-cal2-event-meta">
-                          ${e.code ? `<span class="ns-cal2-chip">${e.code}</span>` : ''}
-                          <span class="ns-cal2-chip">${kind.toUpperCase()}</span>
-                        </div>
-                      </div>
-                    `;
+                    <div class="cal-block ${missed ? 'cal-block--missed' : ''} ${kind === 'busy' ? 'cal-block--busy' : ''}"
+                        style="position:absolute; top:${top}px; left:2px; right:2px; height:${height}px; z-index:2; background:${bg}; border-left:3px solid ${bColor}; ${missed || kind === 'busy' ? 'border-style:dashed;' : ''} color:${tColor};"
+                        onclick="openCalModal(${dayIdx}, '${e.id}'); event.stopPropagation();">
+                    <div class="cal-block__header">
+                        <span class="cal-block__time">${minToHHMM(start)} – ${minToHHMM(end)}</span>
+                    </div>
+                    <div class="cal-block__title" style="margin-top:${kind === 'busy' ? 4 : 0}px">${e.title || 'Untitled'}</div>
+                    ${e.code && kind !== 'busy' ? `<div class="cal-block__sub">${e.code}</div>` : ''}
+                    <div class="cal-block__tags">
+                        <span class="cal-block__badge" style="background:${bColor}18; color:${bColor}; border:1px solid ${bColor}40;">${missed ? 'MISSED' : badge}</span>
+                    </div>
+                    </div>
+                `;
             }).join('');
 
-        return `
-              <div class="ns-cal2-daycol" data-day="${dayIdx}" onclick="openCalModal(${dayIdx})">
-                ${hourLines}
-                ${events}
-              </div>
-            `;
-    }).join('')}
-      </div>
-    `;
+        const nowIndicator = isToday ? (() => {
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            if (currentMin >= dayStartMin && currentMin <= dayEndMin) {
+                const top = ((currentMin - dayStartMin) / 60) * PX_PER_HOUR;
+                return `
+                    <div class="cal-grid__now" style="top:${top}px">
+                        <div class="cal-grid__now-dot"></div>
+                        <div class="cal-grid__now-line"></div>
+                    </div>
+                `;
+            }
+            return '';
+        })() : '';
 
-    container.innerHTML = `
-      <div class="ns-cal2">
-        ${headerHtml}
-        ${dayHeaderHtml}
-        <div class="ns-cal2-body">
-          ${timeColHtml}
-          ${gridHtml}
+        return `
+            <div class="cal-grid__day-col" role="gridcell" aria-label="${days[dayIdx].toDateString()}">
+            ${bgGrid}
+            ${eventsHtml}
+            ${nowIndicator}
+            </div>
+        `;
+    }).join('')}
         </div>
       </div>
     `;
 
-    // Controls
+    // Legend
+    const legendHtml = `
+      <div class="cal-legend" role="region" aria-label="Calendar legend">
+        <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#DBEAFE; border-left:3px solid #3B82F6;"></span>
+          <span class="cal-legend__label">Lecture</span>
+        </div>
+        <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#EDE9FE; border-left:3px solid #8B5CF6;"></span>
+          <span class="cal-legend__label">Tutorial</span>
+        </div>
+        <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#DCFCE7; border-left:3px solid #22C55E;"></span>
+          <span class="cal-legend__label">Study</span>
+        </div>
+        <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#F1F5F9; border-left:3px solid #94A3B8; border-style:dashed;"></span>
+          <span class="cal-legend__label">Busy</span>
+        </div>
+        <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#FEF2F2; border-left:3px solid #EF4444; border-style:dashed;"></span>
+          <span class="cal-legend__label">Missed</span>
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = `
+      <div class="cal-week">
+        ${headerHtml}
+        ${dayHeaderHtml}
+        ${gridHtml}
+        ${legendHtml}
+      </div>
+    `;
+
+    // Controls bindings
     document.getElementById('ns-cal2-prev')?.addEventListener('click', () => {
         state.calendarView.weekStart = addDays(state.calendarView.weekStart, -7);
         renderCalendar();
@@ -883,13 +933,13 @@ async function fetchAndApplyBackendData() {
         student_id: "student_demo",
         subject: "deep_learning",
         exam_weights: {
-            linear_algebra:   0.15,
-            calculus:         0.10,
-            chain_rule:       0.15,
+            linear_algebra: 0.15,
+            calculus: 0.10,
+            chain_rule: 0.15,
             gradient_descent: 0.20,
-            backprop:         0.25,
-            cnn:              0.10,
-            transformers:     0.05
+            backprop: 0.25,
+            cnn: 0.10,
+            transformers: 0.05
         },
         days_until_exam: 14,
         current_weekly_minutes: 240
@@ -907,7 +957,7 @@ async function fetchAndApplyBackendData() {
         // 1. Stats cards
         const pm = data.weekly_report.predicted_score_model;
         const baseScore = Math.round(pm.base_expected);
-        const recScore  = Math.round(pm.simulation_recommended_plan.expected_score);
+        const recScore = Math.round(pm.simulation_recommended_plan.expected_score);
 
         const readinessEl = document.getElementById('ns-stat-readiness');
         if (readinessEl) readinessEl.innerHTML = `${baseScore}<span class="ns-stat-sub">/100</span>`;
@@ -1007,6 +1057,26 @@ function bindNsAppEvents() {
     bindCalendarEvents();
     renderCalendar();
     bindQuizEvents();
+
+    // Back button: return to My Courses
+    const backBtn = document.getElementById('btn-back-courses');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            switchTab('view-courses');
+            document.getElementById('ns-page-title').textContent = 'My Courses';
+            document.querySelectorAll('#ns-nav-default .ns-nav-item').forEach((nav, i) => {
+                nav.classList.toggle('active', i === 0);
+            });
+        });
+    }
+
+    // Drawer close
+    const closeDrawer = document.getElementById('btn-close-drawer');
+    if (closeDrawer) closeDrawer.addEventListener('click', closeConceptDrawer);
+    const drawerOverlay = document.getElementById('ns-concept-drawer');
+    if (drawerOverlay) drawerOverlay.addEventListener('click', (e) => {
+        if (e.target === drawerOverlay) closeConceptDrawer();
+    });
 }
 
 function switchTab(viewId) {
@@ -1034,6 +1104,16 @@ function switchTab(viewId) {
     });
 }
 
+function openCourseAnalytics(courseId) {
+    state.activeCourseAnalyticsId = courseId;
+    renderCourseAnalytics(courseId);
+    switchTab('view-course-analytics');
+    // update header title
+    document.getElementById('ns-page-title').textContent = 'Course Analytics';
+    // deactivate sidebar items
+    document.querySelectorAll('#ns-nav-default .ns-nav-item').forEach(nav => nav.classList.remove('active'));
+}
+
 
 
 function renderNsAppCourses() {
@@ -1046,34 +1126,489 @@ function renderNsAppCourses() {
     const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EC4899'];
 
     grid.innerHTML = displayCourses.map((c, idx) => {
+        const analyticsPayload = courseAnalyticsData[c.id];
+        const concepts = analyticsPayload ? analyticsPayload.concepts : [];
+        const annotated = concepts.map(annotate);
+        const weightedMastery = computeWeightedMastery(annotated);
+        const masteryPct = Math.round(weightedMastery * 100);
+        const attentionItems = annotated.filter(x => x.flags.requiresAttention);
+
         // Use real mastery from backend if available, else fallback
         const conceptMastery = state.topConcepts && state.topConcepts[idx]
             ? Math.round(state.topConcepts[idx].mastery * 100)
             : Math.floor(Math.random() * 40) + 40;
         const mastery = conceptMastery;
+
         const color = colors[idx % colors.length];
+        const weakTopicNames = attentionItems.slice(0, 3).map(x => x.name).join(', ') || '—';
         return `
-        <div class="ns-card ns-course-card">
+        <div class="ns-card ns-course-card" data-course-id="${c.id}" style="cursor:pointer;" onclick="openCourseAnalytics('${c.id}')">
             <div class="ns-course-header">
                 <div>
                     <h3 class="ns-course-name">${c.code}</h3>
                     <p style="margin: 4px 0 0 0; color: var(--ns-text-muted); font-size: 0.9rem;">${c.title}</p>
                 </div>
-                <div class="ns-mastery-ring" style="--mastery: ${mastery}%; background: conic-gradient(${color} var(--mastery, 0%), var(--ns-sidebar-border) 0);">
-                    <div class="ns-mastery-inner" style="color: ${color}">${mastery}%</div>
+                <div class="ns-mastery-ring" style="--mastery: ${masteryPct}%; background: conic-gradient(${color} var(--mastery, 0%), var(--ns-sidebar-border) 0);">
+                    <div class="ns-mastery-inner" style="color: ${color}">${masteryPct}%</div>
                 </div>
             </div>
             <div class="ns-course-progress">
                 <div class="ns-bar-label">
                     <span>Course Progress</span>
-                    <span>${mastery}%</span>
+                    <span>${masteryPct}%</span>
                 </div>
                 <div class="ns-progress-bg">
-                    <div class="ns-progress-fill" style="width: ${mastery}%; background: ${color}"></div>
+                    <div class="ns-progress-fill" style="width: ${masteryPct}%; background: ${color}"></div>
                 </div>
-                <div class="ns-weak-topics">Requires Attention: ${state.topConcepts && state.topConcepts[idx] ? state.topConcepts[idx].concept_name : 'Review needed'}</div>
+                <div class="ns-weak-topics">Requires Attention: ${weakTopicNames}</div>
             </div>
         </div>
         `;
     }).join('');
+}
+
+/* =========================================================
+   COURSE ANALYTICS ENGINE
+   Mirrors mastery_to_concepts_payload() from bridge.py
+   ========================================================= */
+
+/**
+ * Mock bridge data keyed by course.id
+ * Schema mirrors: mastery_to_concepts_payload(mastery_state, exam_weights, curriculum_meta)
+ * { id, name, exam_weightage, mastery [0-1], last_practiced_at (ISO|null), prerequisites [id], difficulty }
+ *
+ * Replace `concepts` array below with a real fetch:
+ *   const payload = await fetch('/api/course-report?course_id=' + courseId).then(r => r.json());
+ */
+const courseAnalyticsData = {
+    '1': { // CZ1003
+        name: 'Introduction to Computational Thinking',
+        code: 'CZ1003',
+        focusTime: '3h 20m',
+        concepts: [
+            { id: 'c01', name: 'Variables & Data Types', exam_weightage: 0.10, mastery: 0.85, last_practiced_at: '2026-02-28T09:00:00Z', prerequisites: [], difficulty: 'easy' },
+            { id: 'c02', name: 'Control Flow', exam_weightage: 0.15, mastery: 0.72, last_practiced_at: '2026-02-27T14:00:00Z', prerequisites: ['c01'], difficulty: 'medium' },
+            { id: 'c03', name: 'Arrays & Strings', exam_weightage: 0.20, mastery: 0.42, last_practiced_at: '2026-02-22T10:00:00Z', prerequisites: ['c01', 'c02'], difficulty: 'medium' },
+            { id: 'c04', name: 'Pointers & Memory', exam_weightage: 0.20, mastery: 0.30, last_practiced_at: null, prerequisites: ['c03'], difficulty: 'hard' },
+            { id: 'c05', name: 'Functions & Recursion', exam_weightage: 0.15, mastery: 0.55, last_practiced_at: '2026-02-24T08:00:00Z', prerequisites: ['c02'], difficulty: 'medium' },
+            { id: 'c06', name: 'Sorting Algorithms', exam_weightage: 0.10, mastery: 0.65, last_practiced_at: '2026-02-25T11:00:00Z', prerequisites: ['c03'], difficulty: 'hard' },
+            { id: 'c07', name: 'Computational Complexity', exam_weightage: 0.10, mastery: 0.20, last_practiced_at: null, prerequisites: ['c06'], difficulty: 'hard' },
+        ]
+    },
+    '2': { // SC2002
+        name: 'Object Oriented Design and Programming',
+        code: 'SC2002',
+        focusTime: '2h 45m',
+        concepts: [
+            { id: 's01', name: 'Classes & Objects', exam_weightage: 0.12, mastery: 0.90, last_practiced_at: '2026-03-01T09:00:00Z', prerequisites: [], difficulty: 'easy' },
+            { id: 's02', name: 'Inheritance', exam_weightage: 0.15, mastery: 0.78, last_practiced_at: '2026-02-28T08:00:00Z', prerequisites: ['s01'], difficulty: 'medium' },
+            { id: 's03', name: 'Polymorphism', exam_weightage: 0.18, mastery: 0.52, last_practiced_at: '2026-02-20T14:00:00Z', prerequisites: ['s01', 's02'], difficulty: 'medium' },
+            { id: 's04', name: 'Interfaces & Abstract Classes', exam_weightage: 0.15, mastery: 0.35, last_practiced_at: null, prerequisites: ['s02'], difficulty: 'hard' },
+            { id: 's05', name: 'Design Patterns', exam_weightage: 0.20, mastery: 0.28, last_practiced_at: null, prerequisites: ['s03', 's04'], difficulty: 'hard' },
+            { id: 's06', name: 'Exception Handling', exam_weightage: 0.10, mastery: 0.70, last_practiced_at: '2026-02-26T11:00:00Z', prerequisites: ['s01'], difficulty: 'easy' },
+            { id: 's07', name: 'Collections Framework', exam_weightage: 0.10, mastery: 0.60, last_practiced_at: '2026-02-23T10:00:00Z', prerequisites: ['s01'], difficulty: 'medium' },
+        ]
+    },
+    '3': { // SC2006
+        name: 'Software Engineering',
+        code: 'SC2006',
+        focusTime: '4h 10m',
+        concepts: [
+            { id: 'e01', name: 'SDLC Models', exam_weightage: 0.12, mastery: 0.88, last_practiced_at: '2026-03-01T10:00:00Z', prerequisites: [], difficulty: 'easy' },
+            { id: 'e02', name: 'Requirements Engineering', exam_weightage: 0.15, mastery: 0.75, last_practiced_at: '2026-02-28T13:00:00Z', prerequisites: ['e01'], difficulty: 'medium' },
+            { id: 'e03', name: 'UML Diagrams', exam_weightage: 0.18, mastery: 0.82, last_practiced_at: '2026-02-27T09:00:00Z', prerequisites: ['e02'], difficulty: 'medium' },
+            { id: 'e04', name: 'Design Patterns', exam_weightage: 0.20, mastery: 0.58, last_practiced_at: '2026-02-22T14:00:00Z', prerequisites: ['e03'], difficulty: 'hard' },
+            { id: 'e05', name: 'Testing & QA', exam_weightage: 0.15, mastery: 0.40, last_practiced_at: '2026-02-18T08:00:00Z', prerequisites: ['e04'], difficulty: 'hard' },
+            { id: 'e06', name: 'Agile Methodologies', exam_weightage: 0.10, mastery: 0.72, last_practiced_at: '2026-03-01T11:00:00Z', prerequisites: [], difficulty: 'easy' },
+            { id: 'e07', name: 'DevOps & CI/CD', exam_weightage: 0.10, mastery: 0.22, last_practiced_at: null, prerequisites: ['e05'], difficulty: 'hard' },
+        ]
+    },
+    '4': { // MH1810
+        name: 'Mathematics I',
+        code: 'MH1810',
+        focusTime: '5h 30m',
+        concepts: [
+            { id: 'm01', name: 'Limits & Continuity', exam_weightage: 0.12, mastery: 0.92, last_practiced_at: '2026-03-01T08:00:00Z', prerequisites: [], difficulty: 'easy' },
+            { id: 'm02', name: 'Differentiation', exam_weightage: 0.18, mastery: 0.85, last_practiced_at: '2026-02-28T09:00:00Z', prerequisites: ['m01'], difficulty: 'medium' },
+            { id: 'm03', name: 'Integration Techniques', exam_weightage: 0.20, mastery: 0.65, last_practiced_at: '2026-02-26T14:00:00Z', prerequisites: ['m02'], difficulty: 'hard' },
+            { id: 'm04', name: 'Differential Equations', exam_weightage: 0.20, mastery: 0.38, last_practiced_at: '2026-02-20T10:00:00Z', prerequisites: ['m02', 'm03'], difficulty: 'hard' },
+            { id: 'm05', name: 'Sequences & Series', exam_weightage: 0.15, mastery: 0.55, last_practiced_at: '2026-02-24T11:00:00Z', prerequisites: ['m01'], difficulty: 'medium' },
+            { id: 'm06', name: 'Linear Algebra', exam_weightage: 0.15, mastery: 0.30, last_practiced_at: null, prerequisites: [], difficulty: 'hard' },
+        ]
+    }
+};
+
+/* -------- Derived analytics helpers -------- */
+
+/**
+ * annotate() — adds computed flags to a concept object
+ * Mirrors the rules defined in bridge.py / insights.py
+ */
+function annotate(c) {
+    const now = new Date();
+    const lastPrac = c.last_practiced_at ? new Date(c.last_practiced_at) : null;
+    const daysSince = lastPrac ? (now - lastPrac) / (1000 * 60 * 60 * 24) : Infinity;
+
+    const flags = {
+        notStarted: !lastPrac && c.mastery <= 0.2,
+        weak: c.mastery < 0.6,
+        strong: c.mastery >= 0.8,
+        highWeight: c.exam_weightage >= 0.15,
+        dueReview: daysSince > 7 && c.mastery < 0.8 && lastPrac !== null,
+        blocked: false // resolved below after full annotated list
+    };
+
+    flags.requiresAttention = (flags.highWeight && flags.weak) || flags.notStarted || flags.dueReview;
+    return { ...c, flags, daysSince };
+}
+
+/** Resolve blocked flag (prereq mastery < 0.6) — requires full map */
+function resolveBlocked(annotatedList) {
+    const masteryMap = Object.fromEntries(annotatedList.map(c => [c.id, c.mastery]));
+    return annotatedList.map(c => {
+        const blocked = (c.prerequisites || []).some(pid => (masteryMap[pid] ?? 1) < 0.6);
+        const requiresAttention = c.flags.requiresAttention || blocked;
+        return { ...c, flags: { ...c.flags, blocked, requiresAttention } };
+    });
+}
+
+function computeWeightedMastery(annotatedList) {
+    const totalWeight = annotatedList.reduce((s, c) => s + c.exam_weightage, 0);
+    if (totalWeight === 0) return 0.5;
+    return annotatedList.reduce((s, c) => s + c.mastery * c.exam_weightage, 0) / totalWeight;
+}
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+/** Friendly relative time */
+function relativeTime(isoStr) {
+    if (!isoStr) return 'Never';
+    const diff = (Date.now() - new Date(isoStr)) / (1000 * 60 * 60 * 24);
+    if (diff < 1) return 'Today';
+    if (diff < 2) return 'Yesterday';
+    return `${Math.floor(diff)}d ago`;
+}
+
+/** Reason chips for an attention item */
+function reasonChips(c) {
+    const chips = [];
+    if (c.flags.notStarted) chips.push('<span class="ns-badge ns-badge-neutral">Not started</span>');
+    if (c.flags.weak) chips.push('<span class="ns-badge ns-badge-danger">Low mastery</span>');
+    if (c.flags.highWeight) chips.push('<span class="ns-badge ns-badge-warning">High weight</span>');
+    if (c.flags.dueReview) chips.push('<span class="ns-badge ns-badge-info">Due review</span>');
+    if (c.flags.blocked) chips.push('<span class="ns-badge ns-badge-danger">Blocked by prereq</span>');
+    return chips.join('');
+}
+
+/** Status badge */
+function statusBadge(c) {
+    if (c.flags.strong) return '<span class="ns-badge ns-badge-success">Strong</span>';
+    if (c.flags.blocked) return '<span class="ns-badge ns-badge-danger">Blocked</span>';
+    if (c.flags.notStarted) return '<span class="ns-badge ns-badge-neutral">Not Started</span>';
+    if (c.flags.dueReview) return '<span class="ns-badge ns-badge-info">Review</span>';
+    if (c.flags.weak) return '<span class="ns-badge ns-badge-warning">Weak</span>';
+    return '<span class="ns-badge ns-badge-success">On Track</span>';
+}
+
+/** Difficulty badge */
+function difficultyBadge(diff) {
+    const map = {
+        easy: '<span class="ns-diff-dot ns-diff-easy"></span>Easy',
+        medium: '<span class="ns-diff-dot ns-diff-medium"></span>Medium',
+        hard: '<span class="ns-diff-dot ns-diff-hard"></span>Hard',
+    };
+    return `<span style="display:inline-flex;align-items:center;">${map[diff] || diff}</span>`;
+}
+
+/** Mastery progress cell */
+function masteryCell(mastery) {
+    const pct = Math.round(mastery * 100);
+    const color = pct >= 80 ? 'var(--ns-success)' : pct >= 60 ? 'var(--ns-warning)' : 'var(--ns-danger)';
+    return `<div class="ns-mastery-cell">
+        <div class="ns-progress-bar-bg" style="flex:1; height:6px;">
+            <div class="ns-progress-bar-fill" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <span style="font-weight:700; font-size:0.9rem; color:${color}; min-width:36px; text-align:right;">${pct}%</span>
+    </div>`;
+}
+
+/* -------- Main renderer -------- */
+
+function renderCourseAnalytics(courseId) {
+    const payload = courseAnalyticsData[courseId];
+    if (!payload) return;
+
+    const course = state.courses.find(c => c.id === courseId);
+    if (!course) return;
+
+    // 1. Header
+    document.getElementById('ns-analytics-course-code').textContent = payload.code || course.code;
+    document.getElementById('ns-analytics-course-title').textContent = payload.name || course.title;
+
+    // 2. Annotate concepts
+    let annotated = payload.concepts.map(annotate);
+    annotated = resolveBlocked(annotated);
+    state.analyticsAnnotated = annotated; // cache for drawer lookups
+
+    // 3. Compute KPIs
+    const weightedMastery = computeWeightedMastery(annotated);
+    const readiness = Math.round(weightedMastery * 100);
+    const predicted = Math.round(clamp(50 + weightedMastery * 50, 0, 100));
+    const attentionCount = annotated.filter(c => c.flags.requiresAttention).length;
+    const focusTime = payload.focusTime || '\u2014';
+
+    document.getElementById('ns-analytics-readiness').innerHTML = `${readiness}<span class="ns-stat-sub">/100</span>`;
+    document.getElementById('ns-analytics-readiness-trend').textContent = readiness >= 75 ? '\u2191 On track' : 'Needs improvement';
+    document.getElementById('ns-analytics-readiness-trend').className = `ns-stat-trend ${readiness >= 75 ? 'positive' : 'negative'}`;
+    document.getElementById('ns-analytics-predicted').innerHTML = `${predicted}<span class="ns-stat-sub">%</span>`;
+    document.getElementById('ns-analytics-predicted-trend').textContent = `Based on current mastery trend`;
+    document.getElementById('ns-analytics-focus').textContent = focusTime;
+    document.getElementById('ns-analytics-attention-count').textContent = attentionCount;
+
+    // 4. Render attention list
+    renderAttentionList(annotated);
+
+    // 5. Render table (default: sorted by mastery asc)
+    state.analyticsFilter = 'all';
+    state.analyticsSort = 'mastery-asc';
+    renderConceptTableFilters(annotated);
+    renderConceptTable(annotated);
+
+    // 6. Quick Insights
+    renderQuickInsights(annotated);
+}
+
+function renderAttentionList(annotated) {
+    const list = document.getElementById('ns-analytics-attention-list');
+    if (!list) return;
+    const attentionItems = annotated.filter(c => c.flags.requiresAttention).slice(0, 3);
+    if (attentionItems.length === 0) {
+        list.innerHTML = '<p style="color: var(--ns-text-muted); font-size:0.9rem;">\u2728 No flagged concepts \u2014 you\'re on top of things!</p>';
+        return;
+    }
+    list.innerHTML = attentionItems.map(c => `
+        <div class="ns-attention-item">
+            <div class="ns-attention-info">
+                <h4>${c.name}</h4>
+                <p>Mastery: ${Math.round(c.mastery * 100)}% &bull; Weight: ${Math.round(c.exam_weightage * 100)}%</p>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${reasonChips(c)}</div>
+            </div>
+            <button class="ns-btn-primary" style="flex-shrink:0; margin-left:16px;"
+                onclick="openConceptDrawer('${c.id}')">Start Practice</button>
+        </div>
+    `).join('');
+}
+
+function renderConceptTableFilters(annotated) {
+    const filters = document.getElementById('ns-analytics-filters');
+    if (!filters) return;
+
+    const options = [
+        { key: 'all', label: 'All' },
+        { key: 'weak', label: 'Weak' },
+        { key: 'highWeight', label: 'High Weight' },
+        { key: 'notStarted', label: 'Not Started' },
+        { key: 'blocked', label: 'Blocked' },
+        { key: 'dueReview', label: 'Due Review' },
+    ];
+
+    filters.innerHTML = options.map(opt => `
+        <button class="ns-badge ${state.analyticsFilter === opt.key ? 'ns-badge-info' : 'ns-badge-neutral'}"
+            style="cursor:pointer; padding:6px 14px; border:none;"
+            onclick="setAnalyticsFilter('${opt.key}')">${opt.label}</button>
+    `).join('');
+}
+
+function setAnalyticsFilter(key) {
+    state.analyticsFilter = key;
+    const payload = courseAnalyticsData[state.activeCourseAnalyticsId];
+    if (!payload) return;
+    let annotated = payload.concepts.map(annotate);
+    annotated = resolveBlocked(annotated);
+    state.analyticsAnnotated = annotated;
+    renderConceptTableFilters(annotated);
+    renderConceptTable(annotated);
+}
+
+/** Prescriptive action type per concept */
+function conceptAction(c) {
+    if (c.flags.notStarted) return { type: 'learn', time: 90 };
+    if (c.flags.blocked) return { type: 'unblock', time: 60 };
+    if (c.flags.dueReview) return { type: 'revise', time: 45 };
+    if (c.flags.weak) return { type: 'reinforce', time: 60 };
+    return { type: 'maintain', time: 25 };
+}
+
+/** Why text per flag combo */
+function conceptWhy(c) {
+    if (c.flags.notStarted) return `You haven't started this yet. With ${Math.round(c.exam_weightage * 100)}% exam weight, beginning now will have a high score impact.`;
+    if (c.flags.blocked) return `Prerequisite concepts have low mastery (<60%). Strengthen foundations first to unlock solid understanding here.`;
+    if (c.flags.dueReview) return `High forgetting risk — it's been ${Math.floor(c.daysSince)}d since last practice. Quick revision now stabilizes memory retention.`;
+    if (c.flags.weak && c.flags.highWeight) return `Low mastery (${Math.round(c.mastery * 100)}%) on a high-weight (${Math.round(c.exam_weightage * 100)}%) concept — prime target for score improvement.`;
+    if (c.flags.weak) return `Mastery at ${Math.round(c.mastery * 100)}% — below the 60% threshold. Focused practice will consolidate understanding.`;
+    return `You're doing well here (${Math.round(c.mastery * 100)}%). A short revision session will lock in your mastery before the exam.`;
+}
+
+/** Next steps bullets per action type */
+function conceptNextSteps(c, action) {
+    const steps = {
+        learn: [
+            'Read the core concept notes / lecture slides (20–30 min)',
+            'Watch a short explainer video or worked example',
+            'Attempt 3–5 starter practice questions',
+            'Create a concept map or summary sheet',
+        ],
+        unblock: [
+            `First revise: ${(c.prerequisites || []).join(', ') || 'prerequisite topics'} to ≥60% mastery`,
+            'Then revisit this concept with that foundation in place',
+            'Do active recall: solve questions without looking at notes',
+        ],
+        revise: [
+            'Review notes for 15 min — focus on key definitions',
+            'Do 3–5 quick recall questions from memory',
+            'Create 10 flashcards / cues for spaced repetition',
+        ],
+        reinforce: [
+            'Attempt past exam questions on this concept',
+            'Identify which sub-topics you consistently get wrong',
+            'Keep an error log and reattempt after 24 hours',
+        ],
+        maintain: [
+            'Quick 10-min review once a week to avoid decay',
+            'Test yourself with 2–3 application-level questions',
+        ],
+    };
+    return steps[action.type] || steps.revise;
+}
+
+function renderConceptTable(annotated) {
+    const container = document.getElementById('ns-analytics-table-body');
+    if (!container) return;
+
+    // Apply filter
+    let filtered = annotated;
+    const f = state.analyticsFilter || 'all';
+    if (f !== 'all') filtered = annotated.filter(c => c.flags[f]);
+
+    // Sort by mastery ascending (weakest first — most actionable)
+    filtered = [...filtered].sort((a, b) => a.mastery - b.mastery);
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--ns-text-muted);">No concepts match this filter.</div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(c => {
+        const act = conceptAction(c);
+        const why = conceptWhy(c);
+        const steps = conceptNextSteps(c, act);
+        const pct = Math.round(c.mastery * 100);
+        const color = pct >= 80 ? 'var(--ns-success)' : pct >= 60 ? 'var(--ns-warning)' : 'var(--ns-danger)';
+        const actionLabel = { learn: 'Learn', revise: 'Revise', reinforce: 'Reinforce', unblock: 'Unblock', maintain: 'Maintain' }[act.type] || act.type;
+
+        return `
+        <div class="ns-prescriptive-card" onclick="openConceptDrawer('${c.id}')">
+            <div class="ns-presc-header">
+                <div>
+                    <div class="ns-presc-title">${c.name}</div>
+                    <div class="ns-presc-action-type">${actionLabel}</div>
+                </div>
+                <div class="ns-presc-meta">
+                    <span class="ns-presc-time">${act.time} min</span>
+                    <div class="ns-presc-mastery-row">
+                        <div style="width:80px; height:5px; background:var(--ns-sidebar-border); border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle;">
+                            <div style="width:${pct}%; height:100%; background:${color};"></div>
+                        </div>
+                        <span style="font-size:0.8rem; color:${color}; font-weight:700; margin-left:6px;">${pct}%</span>
+                    </div>
+                </div>
+            </div>
+            <p class="ns-presc-why"><strong>Why:</strong> ${why}</p>
+            <div class="ns-presc-steps">
+                <p class="ns-presc-steps-label">Next steps:</p>
+                <ul>${steps.map(s => `<li>${s}</li>`).join('')}</ul>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+function renderQuickInsights(annotated) {
+    const list = document.getElementById('ns-analytics-insights-list');
+    if (!list) return;
+
+    const sorted = [...annotated].sort((a, b) => a.mastery - b.mastery);
+    const weakest = sorted[0];
+    const strongest = [...annotated].sort((a, b) => b.mastery - a.mastery)[0];
+    const notStarted = annotated.filter(c => c.flags.notStarted).length;
+    const highImpact = annotated.filter(c => c.flags.highWeight && c.flags.weak);
+
+    const insights = [
+        weakest ? `<strong>Focus on:</strong> ${weakest.name} (${Math.round(weakest.mastery * 100)}% mastery, ${Math.round(weakest.exam_weightage * 100)}% weight)` : null,
+        strongest ? `<strong>Strength:</strong> ${strongest.name} \u2014 ${Math.round(strongest.mastery * 100)}% mastery, keep it up!` : null,
+        notStarted > 0 ? `<strong>${notStarted} concept${notStarted > 1 ? 's' : ''}</strong> not yet started \u2014 tackle these before the exam.` : null,
+        highImpact.length > 0 ? `<strong>${highImpact.length} high-weight, weak</strong> concept${highImpact.length > 1 ? 's' : ''} need urgent attention.` : null,
+    ].filter(Boolean);
+
+    list.innerHTML = insights.map(t => `<li>${t}</li>`).join('');
+}
+
+/* -------- Concept Drawer -------- */
+
+function openConceptDrawer(conceptId) {
+    const all = state.analyticsAnnotated || [];
+    const c = all.find(x => x.id === conceptId);
+    if (!c) return;
+
+    document.getElementById('ns-drawer-title').textContent = c.name;
+    document.getElementById('ns-drawer-mastery-fill').style.width = Math.round(c.mastery * 100) + '%';
+    document.getElementById('ns-drawer-mastery-text').textContent = Math.round(c.mastery * 100) + '%';
+    document.getElementById('ns-drawer-weight').textContent = Math.round(c.exam_weightage * 100) + '%';
+
+    // Badges
+    document.getElementById('ns-drawer-badges').innerHTML = [
+        difficultyBadge(c.difficulty),
+        statusBadge(c)
+    ].join('');
+
+    // Prerequisites
+    const prereqList = document.getElementById('ns-drawer-prereqs');
+    const masteryMap = Object.fromEntries(all.map(x => [x.id, x]));
+    if (c.prerequisites && c.prerequisites.length > 0) {
+        prereqList.innerHTML = c.prerequisites.map(pid => {
+            const prereq = masteryMap[pid];
+            if (!prereq) return '';
+            const pct = Math.round(prereq.mastery * 100);
+            const color = pct >= 60 ? 'var(--ns-success)' : 'var(--ns-danger)';
+            return `<li class="ns-prereq-item">
+                <span>${prereq.name}</span>
+                <span style="font-weight:700; color:${color};">${pct}%</span>
+            </li>`;
+        }).filter(Boolean).join('');
+    } else {
+        prereqList.innerHTML = '<li class="ns-prereq-item" style="color:var(--ns-text-muted);">No prerequisites</li>';
+    }
+
+    // Recommendation text
+    const rec = document.getElementById('ns-drawer-recommendation');
+    let why = '';
+    if (c.flags.notStarted) why = `You haven't started "${c.name}" yet. With ${Math.round(c.exam_weightage * 100)}% exam weight, starting now will have a high score impact.`;
+    else if (c.flags.blocked) why = `Some prerequisites for "${c.name}" have low mastery. Strengthen those first to unlock solid understanding.`;
+    else if (c.flags.dueReview) why = `It's been ${Math.floor(c.daysSince)} days since you last practiced "${c.name}". Spaced repetition now will lock in your memory.`;
+    else if (c.flags.weak) why = `"${c.name}" is below 60% mastery with ${Math.round(c.exam_weightage * 100)}% exam weight — prime target for a quick mark gain.`;
+    else why = `"${c.name}" looks good! A quick review session will lock in your strong mastery before the exam.`;
+    rec.textContent = why;
+
+    // Bind CTA
+    document.getElementById('btn-drawer-practice').onclick = () => {
+        closeConceptDrawer();
+        // Future hook: navigate to practice session
+        // window.location.href = `/practice?course_id=${state.activeCourseAnalyticsId}&concept_id=${c.id}`;
+    };
+
+    document.getElementById('ns-concept-drawer').classList.remove('hidden');
+}
+
+function closeConceptDrawer() {
+    document.getElementById('ns-concept-drawer').classList.add('hidden');
 }

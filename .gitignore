@@ -12,3 +12,4 @@ __pycache__/
 node_modules/
 .next/
 main_remote.py
+venv
