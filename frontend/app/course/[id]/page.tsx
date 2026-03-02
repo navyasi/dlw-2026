@@ -573,7 +573,7 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 type MainView = "notes" | "concept-map" | "tutorial";
-type ContentMode = "visual" | "audio" | "kinesthetics" | "quiz";
+type ContentMode = "visual" | "audio" | "kinesthetics" | "quiz" | "tutorials";
 
 const SOURCE_LABEL: Record<string, string> = {
   slides: "Lecture",
@@ -712,7 +712,7 @@ export default function CoursePage({ params }: Props) {
           .then(() => {
             if (courseId) api.getCourseConceptMap(courseId).then(setConceptMapData);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   }, [activeSlide, notebook, conceptMapData, courseId, mainView]);
@@ -806,89 +806,64 @@ export default function CoursePage({ params }: Props) {
               overflow: "hidden",
             }}
           >
-            {/* Tab switcher */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-              {(["lectures", "tutorials"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    const sections = tab === "lectures" ? course.lectures : course.tutorials;
-                    if (sections.length > 0) selectSection(sections[0]);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "9px 4px",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "capitalize",
-                    background: activeTab === tab ? "white" : "transparent",
-                    borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
-                    color: activeTab === tab ? "var(--accent)" : "var(--text-muted)",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  {tab === "lectures" ? "Lectures" : "Tutorials"} (
-                  {tab === "lectures" ? course.lecture_count : course.tutorial_count})
-                </button>
-              ))}
+            {/* Navigation Header */}
+            <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--border)" }}>
+              <Link href="/study" style={{ display: "inline-block", color: "var(--text-muted)", fontSize: 13, textDecoration: "none", marginBottom: 12 }}>
+                ← Courses
+              </Link>
+              <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                {course.code}
+              </h1>
             </div>
 
-            {/* Section list */}
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {allSections.length === 0 && (
-                <div style={{ padding: "20px 12px", color: "var(--text-muted)", fontSize: 12, textAlign: "center" }}>
-                  No {activeTab} yet
-                </div>
-              )}
-              {allSections.map((s) => {
-                const isActive = activeSection?.id === s.id;
-                const typeLabel = SOURCE_LABEL[s.source_type] ?? s.source_type;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => selectSection(s)}
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      background: isActive ? "var(--accent-light)" : "transparent",
-                      borderLeft: `3px solid ${isActive ? "var(--accent)" : "transparent"}`,
-                      borderBottom: "1px solid var(--border)",
-                      borderTop: "none",
-                      borderRight: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                        color: "var(--text-muted)",
-                        marginBottom: 2,
-                      }}
-                    >
-                      {typeLabel}
+            {/* Section list (Timeline style) */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 16 }}>
+                IN PROGRESS
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", position: "relative" }}>
+                {/* Vertical Line */}
+                <div style={{ position: "absolute", top: "8px", bottom: "8px", left: "4px", width: "2px", backgroundColor: "#eef2f6", zIndex: 0 }}></div>
+
+                {/* Hardcoded Lecture 3 Timeline Item */}
+                {course.lectures.filter(l => l.title.includes("Lecture 3")).map((s) => {
+                  const isActive = activeSection?.id === s.id;
+                  return (
+                    <div key={s.id} onClick={() => selectSection(s)} style={{ display: "flex", gap: "12px", position: "relative", zIndex: 1, cursor: "pointer" }}>
+                      {/* Timeline Dot */}
+                      <div style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        backgroundColor: isActive ? "#5b5fc7" : "#eef2f6",
+                        border: isActive ? "3px solid #e1e1ff" : "none",
+                        marginTop: "4px",
+                        flexShrink: 0,
+                        transition: "all 0.2s ease"
+                      }}></div>
+
+                      {/* Content */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: isActive ? "-2px" : "0" }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
+                          Lecture
+                        </div>
+                        <div style={{
+                          fontSize: "13px",
+                          fontWeight: isActive ? 700 : 500,
+                          color: isActive ? "#5b5fc7" : "var(--text)",
+                          lineHeight: 1.4
+                        }}>
+                          {s.title}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                          {s.page_count} slides
+                        </div>
+                      </div>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: isActive ? 700 : 500,
-                        color: isActive ? "var(--accent)" : "var(--text)",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {s.title}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
-                      {s.page_count} {s.source_type === "tutorial" ? "question(s)" : "slides"}
-                    </div>
-                  </button>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -906,32 +881,25 @@ export default function CoursePage({ params }: Props) {
                 flexShrink: 0,
               }}
             >
-              {(["visual", "audio", "kinesthetics", "quiz"] as ContentMode[]).map((mode) => (
+              {(["visual", "audio", "kinesthetics", "quiz", "tutorials"] as ContentMode[]).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setContentMode(mode)}
                   style={{
-                    padding: "8px 20px",
-                    fontSize: 12,
-                    fontWeight: 600,
+                    flex: 1,
+                    padding: "10px 4px",
+                    fontSize: 11,
+                    fontWeight: 700,
                     textTransform: "capitalize",
-                    cursor: "pointer",
-                    background: contentMode === mode ? "white" : "transparent",
-                    borderBottom: contentMode === mode ? "2px solid var(--accent)" : "2px solid transparent",
+                    background: "transparent",
                     color: contentMode === mode ? "var(--accent)" : "var(--text-muted)",
                     border: "none",
-                    borderBottomWidth: 2,
-                    borderBottomStyle: "solid",
+                    borderBottom: "2px solid",
+                    cursor: "pointer",
                     borderBottomColor: contentMode === mode ? "var(--accent)" : "transparent",
                   }}
                 >
-                  {mode === "visual"
-                    ? "Visual"
-                    : mode === "audio"
-                      ? "Audio"
-                      : mode === "kinesthetics"
-                        ? "Kinesthetics"
-                        : "Quiz"}
+                  {mode === "visual" ? "Visual" : mode === "audio" ? "Audio" : mode === "kinesthetics" ? "Kinesthetics" : mode === "tutorials" ? "Tutorials" : "Quiz"}
                 </button>
               ))}
             </div>
@@ -966,16 +934,16 @@ export default function CoursePage({ params }: Props) {
                   slideChunks={
                     notebook
                       ? notebook.note_blocks.map((b) => ({
-                          pageNum: b.page_num,
-                          term: b.block.concept_box?.term || `Slide ${b.page_num}`,
-                          definition: b.block.concept_box?.definition || "",
-                          keyPoints: [
-                            b.block.concept_box?.definition,
-                            b.block.concept_box?.intuition,
-                            b.block.concept_box?.why_it_matters,
-                            ...(b.block.semantic_blocks || []).map((sb) => sb.text),
-                          ].filter(Boolean) as string[],
-                        }))
+                        pageNum: b.page_num,
+                        term: b.block.concept_box?.term || `Slide ${b.page_num}`,
+                        definition: b.block.concept_box?.definition || "",
+                        keyPoints: [
+                          b.block.concept_box?.definition,
+                          b.block.concept_box?.intuition,
+                          b.block.concept_box?.why_it_matters,
+                          ...(b.block.semantic_blocks || []).map((sb) => sb.text),
+                        ].filter(Boolean) as string[],
+                      }))
                       : []
                   }
                 />
@@ -1108,7 +1076,7 @@ export default function CoursePage({ params }: Props) {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
       />
-    </div>
+    </div >
   );
 }
 
@@ -1225,7 +1193,7 @@ function ConceptMapView({ courseId, data, onRegenerate }: { courseId: number; da
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ mastery }),
-                }).catch(() => {});
+                }).catch(() => { });
               }
             }}
           />

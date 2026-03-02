@@ -75,9 +75,9 @@ const state = {
 
     // --- KHAN ACADEMY / STUDY MODE STATE ---
     todayPlan: [
-        { id: 'p1', timeStart: '09:00', timeEnd: '09:45', subjectTitle: 'Non-contact interactions', status: 'active', subjectId: 'subj1' },
-        { id: 'p2', timeStart: '10:00', timeEnd: '10:50', subjectTitle: 'Calculus: Optimization', status: 'pending', subjectId: 'subj2' },
-        { id: 'p3', timeStart: '13:00', timeEnd: '14:30', subjectTitle: 'Data Structures: Graphs', status: 'pending', subjectId: 'subj3' }
+        { id: 'p1', timeStart: '09:00', timeEnd: '10:00', subjectTitle: 'Computer Security lecture 3', status: 'done', subjectId: 'subj1', isAi: true },
+        { id: 'p2', timeStart: '10:00', timeEnd: '11:00', subjectTitle: 'Computer Security lecture 4', status: 'active', subjectId: 'subj2', isAi: true },
+        { id: 'p3', timeStart: '11:00', timeEnd: '12:00', subjectTitle: 'Greenhouse gas effect', status: 'pending', subjectId: 'subj3', isAi: true }
     ],
     todayProgressPct: 42,
     subjects: {
@@ -112,11 +112,13 @@ const state = {
 
     // --- TIMEMAP / CALENDAR STATE ---
     calendarBlocks: [
-        { id: 'c1', title: 'Machine Learning', day: 0, kind: 'lecture', startMin: 600, endMin: 720, code: 'Lec' },          // 10:00–12:00
-        { id: 'c2', title: 'Deep Work (AI Suggested)', day: 1, kind: 'tutorial', startMin: 600, endMin: 660, code: 'LT-8' }, // 10:00–11:00
-        { id: 'c3', title: 'Review Graphs', day: 3, kind: 'lecture', startMin: 540, endMin: 600, code: 'LT-8' },             // 09:00–10:00
-        { id: 'c4', title: 'Assignment Due', day: 4, kind: 'missed', startMin: 600, endMin: 660, code: 'MISSED' },           // 10:00–11:00
-        { id: 'c5', title: 'Hackathon Prep', day: 4, kind: 'project', startMin: 780, endMin: 1080, code: 'PROJECT' },        // 13:00–18:00
+        { id: 'c1', title: 'Computer Security', day: 0, kind: 'lecture', startMin: 840, endMin: 960, code: 'LEC' },
+        { id: 'c2', title: 'Machine Learning', day: 1, kind: 'tutorial', startMin: 780, endMin: 900, code: 'TUT' },
+        { id: 'c3', title: 'Environmental Science', day: 2, kind: 'lecture', startMin: 540, endMin: 660, code: 'LEC' },
+
+        { id: 't1', title: 'Computer Security lecture 3', day: 0, kind: 'ai', startMin: 540, endMin: 600, code: 'AI STUDY' },
+        { id: 't2', title: 'Computer Security lecture 4', day: 0, kind: 'ai', startMin: 600, endMin: 660, code: 'AI STUDY' },
+        { id: 't3', title: 'Greenhouse gas effect', day: 0, kind: 'ai', startMin: 660, endMin: 720, code: 'AI STUDY' }
     ]
 };
 
@@ -425,7 +427,7 @@ function renderStudySidebar() {
     const timelineEl = document.getElementById('ns-study-timeline');
     if (timelineEl) {
         timelineEl.innerHTML = state.todayPlan.map(plan => `
-            <li class="ns-timeline-item ${plan.status === 'active' ? 'active' : ''} ${plan.status === 'done' ? 'done' : ''}" onclick="selectPlanSubject('${plan.subjectId}', '${plan.id}')">
+            <li class="ns-timeline-item ${plan.status === 'active' ? 'active' : ''} ${plan.status === 'done' ? 'done' : ''} ${plan.isAi ? 'ai' : ''}" onclick="selectPlanSubject('${plan.subjectId}', '${plan.id}')">
                 <div class="ns-timeline-dot"></div>
                 <div class="ns-timeline-time">${plan.timeStart} - ${plan.timeEnd}</div>
                 <div class="ns-timeline-title">${plan.subjectTitle}</div>
@@ -645,8 +647,9 @@ function renderCalendar() {
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     const dayStartMin = 6 * 60;   // 06:00
-    const dayEndMin = 22 * 60;    // 22:00
-    const PX_PER_HOUR = 64;
+    const dayEndMin = 19 * 60;    // 19:00
+    const pxPerMin = 1.5;
+    const gridHeight = (dayEndMin - dayStartMin) * pxPerMin;
 
     const now = new Date();
     const isSameDay = (a, b) =>
@@ -694,7 +697,7 @@ function renderCalendar() {
         <div class="cal-grid" role="grid">
           <div class="cal-grid__hours">
             ${hours.map((t) => `
-              <div class="cal-grid__hour-label" style="height:${PX_PER_HOUR}px">${minToLabel(t)}</div>
+              <div class="cal-grid__hour-label" style="height:${pxPerMin * 60}px">${minToLabel(t)}</div>
             `).join('')}
           </div>
 
@@ -704,7 +707,7 @@ function renderCalendar() {
         const bgGrid = `
             <div class="cal-grid__bg">
             ${hours.map((h) => `
-                <div class="cal-grid__slot" style="height:${PX_PER_HOUR}px" onclick="openCalModal(${dayIdx}, null, ${h})" role="button">
+                <div class="cal-grid__slot" style="height:${pxPerMin * 60}px" onclick="openCalModal(${dayIdx}, null, ${h})" role="button">
                 <div class="cal-grid__slot-hover">+ Add Event</div>
                 </div>
             `).join('')}
@@ -716,8 +719,9 @@ function renderCalendar() {
             .map(e => {
                 const start = Math.max(e.startMin ?? dayStartMin, dayStartMin);
                 const end = Math.min(e.endMin ?? (start + 60), dayEndMin);
-                const top = ((start - dayStartMin) / 60) * PX_PER_HOUR;
-                const height = Math.max(24, ((end - start) / 60) * PX_PER_HOUR - 2);
+
+                const top = (start - dayStartMin) * pxPerMin;
+                const height = Math.max(50, (end - start) * pxPerMin - 4); // -4 gap between stacked events
 
                 const kind = e.kind || 'study';
                 const missed = kind === 'missed';
@@ -726,35 +730,33 @@ function renderCalendar() {
                 const tColor = missed ? '#991B1B' : (kind === 'lecture' ? '#1E40AF' : kind === 'tutorial' ? '#5B21B6' : kind === 'busy' ? '#334155' : '#166534');
                 const badge = e.code || kind.toUpperCase();
 
+                const timeRange = `${minToHHMM(start)} - ${minToHHMM(end)}`;
+
                 return `
-                    <div class="cal-block ${missed ? 'cal-block--missed' : ''} ${kind === 'busy' ? 'cal-block--busy' : ''}"
-                        style="position:absolute; top:${top}px; left:2px; right:2px; height:${height}px; z-index:2; background:${bg}; border-left:3px solid ${bColor}; ${missed || kind === 'busy' ? 'border-style:dashed;' : ''} color:${tColor};"
-                        onclick="openCalModal(${dayIdx}, '${e.id}'); event.stopPropagation();">
-                    <div class="cal-block__header">
-                        <span class="cal-block__time">${minToHHMM(start)} – ${minToHHMM(end)}</span>
-                    </div>
-                    <div class="cal-block__title" style="margin-top:${kind === 'busy' ? 4 : 0}px">${e.title || 'Untitled'}</div>
-                    ${e.code && kind !== 'busy' ? `<div class="cal-block__sub">${e.code}</div>` : ''}
-                    <div class="cal-block__tags">
-                        <span class="cal-block__badge" style="background:${bColor}18; color:${bColor}; border:1px solid ${bColor}40;">${missed ? 'MISSED' : badge}</span>
-                    </div>
-                    </div>
-                `;
+                      <div class="ns-cal2-event kind-${kind}"
+                           style="top:${top}px; height:${height}px"
+                           onclick="openCalModal(${dayIdx}, '${e.id}'); event.stopPropagation();">
+                        <div class="ns-cal2-event-title">${e.title || 'Untitled'}</div>
+                        <div class="ns-cal2-event-time">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.7;flex-shrink:0;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            ${timeRange}
+                        </div>
+                      </div>
+                    `;
             }).join('');
 
-        const nowIndicator = isToday ? (() => {
-            const currentMin = now.getHours() * 60 + now.getMinutes();
-            if (currentMin >= dayStartMin && currentMin <= dayEndMin) {
-                const top = ((currentMin - dayStartMin) / 60) * PX_PER_HOUR;
-                return `
-                    <div class="cal-grid__now" style="top:${top}px">
-                        <div class="cal-grid__now-dot"></div>
-                        <div class="cal-grid__now-line"></div>
-                    </div>
-                `;
-            }
-            return '';
-        })() : '';
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const nowTop = (nowMin - dayStartMin) * pxPerMin;
+
+        const nowIndicator = isToday && nowMin >= dayStartMin && nowMin <= dayEndMin ? `
+                  <div class="cal-grid__now" style="top:${nowTop}px;">
+                    <div class="cal-grid__now-dot"></div>
+                    <div class="cal-grid__now-line"></div>
+                  </div>
+                ` : '';
 
         return `
             <div class="cal-grid__day-col" role="gridcell" aria-label="${days[dayIdx].toDateString()}">
@@ -764,13 +766,12 @@ function renderCalendar() {
             </div>
         `;
     }).join('')}
-        </div>
       </div>
     `;
 
     // Legend
     const legendHtml = `
-      <div class="cal-legend" role="region" aria-label="Calendar legend">
+    <div class="cal-legend" role = "region" aria - label="Calendar legend" >
         <div class="cal-legend__item">
           <span class="cal-legend__swatch" style="background:#DBEAFE; border-left:3px solid #3B82F6;"></span>
           <span class="cal-legend__label">Lecture</span>
@@ -791,16 +792,16 @@ function renderCalendar() {
           <span class="cal-legend__swatch" style="background:#FEF2F2; border-left:3px solid #EF4444; border-style:dashed;"></span>
           <span class="cal-legend__label">Missed</span>
         </div>
-      </div>
+      </div >
     `;
 
     container.innerHTML = `
-      <div class="cal-week">
+    < div class="cal-week" >
         ${headerHtml}
         ${dayHeaderHtml}
         ${gridHtml}
         ${legendHtml}
-      </div>
+      </div >
     `;
 
     // Controls bindings
@@ -818,12 +819,22 @@ function renderCalendar() {
     });
 }
 
+
 function bindCalendarEvents() {
     document.getElementById('ns-cal-add-btn')?.addEventListener('click', () => openCalModal(0));
 
     document.getElementById('ns-cal-cancel')?.addEventListener('click', () =>
         document.getElementById('ns-cal-modal').classList.add('hidden')
     );
+    document.getElementById('ns-cal-close-btn')?.addEventListener('click', () =>
+        document.getElementById('ns-cal-modal').classList.add('hidden')
+    );
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.getElementById('ns-cal-modal').classList.add('hidden');
+        }
+    });
 
     document.getElementById('ns-cal-modal-overlay')?.addEventListener('click', () =>
         document.getElementById('ns-cal-modal').classList.add('hidden')
@@ -837,7 +848,7 @@ function bindCalendarEvents() {
         const title = document.getElementById('ns-cal-input-title').value.trim();
         const day = parseInt(document.getElementById('ns-cal-input-day').value, 10);
         const kind = document.getElementById('ns-cal-input-kind').value;
-        const code = document.getElementById('ns-cal-input-code').value.trim();
+        const code = kind.toUpperCase(); // fallback code
 
         const startMin = hhmmToMin(document.getElementById('ns-cal-input-start').value);
         const endMin = hhmmToMin(document.getElementById('ns-cal-input-end').value);
@@ -887,7 +898,8 @@ function bindCalendarEvents() {
     });
 }
 
-function openCalModal(dayIdx, editId = null) {
+function openCalModal(dayIdx, editId = null, startMinClicked = null, evt = null) {
+    if (evt) evt.stopPropagation();
     const modal = document.getElementById('ns-cal-modal');
     modal.classList.remove('hidden');
     modal.dataset.editId = editId || '';
@@ -895,7 +907,7 @@ function openCalModal(dayIdx, editId = null) {
     const delBtn = document.getElementById('ns-cal-delete');
 
     if (editId) {
-        document.getElementById('ns-cal-modal-title').textContent = 'Edit Block';
+        document.getElementById('ns-cal-modal-title').textContent = 'Edit Event';
         delBtn.classList.remove('hidden');
 
         const block = state.calendarBlocks.find(b => b.id === editId);
@@ -903,24 +915,22 @@ function openCalModal(dayIdx, editId = null) {
 
         document.getElementById('ns-cal-input-title').value = block.title || '';
         document.getElementById('ns-cal-input-day').value = String(block.day ?? dayIdx);
-        document.getElementById('ns-cal-input-kind').value = block.kind || 'study';
-        document.getElementById('ns-cal-input-code').value = block.code || '';
+        document.getElementById('ns-cal-input-kind').value = block.kind || 'user';
 
         document.getElementById('ns-cal-input-start').value = minToHHMM(block.startMin ?? 600);
         document.getElementById('ns-cal-input-end').value = minToHHMM(block.endMin ?? 660);
 
     } else {
-        document.getElementById('ns-cal-modal-title').textContent = 'Add Block';
+        document.getElementById('ns-cal-modal-title').textContent = 'Add Event';
         delBtn.classList.add('hidden');
 
         document.getElementById('ns-cal-input-title').value = '';
         document.getElementById('ns-cal-input-day').value = String(dayIdx);
-        document.getElementById('ns-cal-input-kind').value = 'study';
-        document.getElementById('ns-cal-input-code').value = '';
+        document.getElementById('ns-cal-input-kind').value = 'user';
 
-        // nice defaults
-        document.getElementById('ns-cal-input-start').value = '10:00';
-        document.getElementById('ns-cal-input-end').value = '11:00';
+        const sm = startMinClicked ?? 600;
+        document.getElementById('ns-cal-input-start').value = minToHHMM(sm);
+        document.getElementById('ns-cal-input-end').value = minToHHMM(sm + 60);
     }
 }
 
@@ -960,20 +970,20 @@ async function fetchAndApplyBackendData() {
         const recScore = Math.round(pm.simulation_recommended_plan.expected_score);
 
         const readinessEl = document.getElementById('ns-stat-readiness');
-        if (readinessEl) readinessEl.innerHTML = `${baseScore}<span class="ns-stat-sub">/100</span>`;
+        if (readinessEl) readinessEl.innerHTML = `${baseScore} <span class="ns-stat-sub">/100</span>`;
 
         const predictedEl = document.getElementById('ns-stat-predicted');
-        if (predictedEl) predictedEl.innerHTML = `${recScore}<span class="ns-stat-sub">%</span>`;
+        if (predictedEl) predictedEl.innerHTML = `${recScore} <span class="ns-stat-sub">%</span>`;
 
         const trendEl = document.getElementById('ns-stat-predicted-trend');
-        if (trendEl) trendEl.textContent = `Projected: ${baseScore} → ${recScore}`;
+        if (trendEl) trendEl.textContent = `Projected: ${baseScore} → ${recScore} `;
 
         // 2. Quick Insights
         const recs = data.weekly_report.prescriptive_analysis.recommendations.slice(0, 3);
         const insightsList = document.getElementById('ns-insights-list');
         if (insightsList && recs.length > 0) {
             insightsList.innerHTML = recs.map(r =>
-                `<li><strong>${r.concept_name}:</strong> ${r.rationale}</li>`
+                `< li > <strong>${r.concept_name}:</strong> ${r.rationale}</li > `
             ).join('');
         }
 
@@ -987,14 +997,14 @@ async function fetchAndApplyBackendData() {
                 cursor += 5; // 5-min break between blocks
                 const conceptName = b.concept_ids[0]
                     ? b.concept_ids[0].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                    : `Block ${i + 1}`;
+                    : `Block ${i + 1} `;
                 return {
-                    id: `p${i + 1}`,
+                    id: `p${i + 1} `,
                     timeStart: start,
                     timeEnd: end,
                     subjectTitle: conceptName,
                     status: i === 0 ? 'active' : 'pending',
-                    subjectId: `subj${(i % 3) + 1}`
+                    subjectId: `subj${(i % 3) + 1} `
                 };
             });
             state.todayProgressPct = 0;
@@ -1142,7 +1152,7 @@ function renderNsAppCourses() {
         const color = colors[idx % colors.length];
         const weakTopicNames = attentionItems.slice(0, 3).map(x => x.name).join(', ') || '—';
         return `
-        <div class="ns-card ns-course-card" data-course-id="${c.id}" style="cursor:pointer;" onclick="openCourseAnalytics('${c.id}')">
+    < div class="ns-card ns-course-card" data - course - id="${c.id}" style = "cursor:pointer;" onclick = "openCourseAnalytics('${c.id}')" >
             <div class="ns-course-header">
                 <div>
                     <h3 class="ns-course-name">${c.code}</h3>
@@ -1162,8 +1172,8 @@ function renderNsAppCourses() {
                 </div>
                 <div class="ns-weak-topics">Requires Attention: ${weakTopicNames}</div>
             </div>
-        </div>
-        `;
+        </div >
+    `;
     }).join('');
 }
 
@@ -1317,19 +1327,19 @@ function difficultyBadge(diff) {
         medium: '<span class="ns-diff-dot ns-diff-medium"></span>Medium',
         hard: '<span class="ns-diff-dot ns-diff-hard"></span>Hard',
     };
-    return `<span style="display:inline-flex;align-items:center;">${map[diff] || diff}</span>`;
+    return `< span style = "display:inline-flex;align-items:center;" > ${map[diff] || diff}</span > `;
 }
 
 /** Mastery progress cell */
 function masteryCell(mastery) {
     const pct = Math.round(mastery * 100);
     const color = pct >= 80 ? 'var(--ns-success)' : pct >= 60 ? 'var(--ns-warning)' : 'var(--ns-danger)';
-    return `<div class="ns-mastery-cell">
+    return `< div class="ns-mastery-cell" >
         <div class="ns-progress-bar-bg" style="flex:1; height:6px;">
             <div class="ns-progress-bar-fill" style="width:${pct}%; background:${color};"></div>
         </div>
         <span style="font-weight:700; font-size:0.9rem; color:${color}; min-width:36px; text-align:right;">${pct}%</span>
-    </div>`;
+    </div > `;
 }
 
 /* -------- Main renderer -------- */
@@ -1357,10 +1367,10 @@ function renderCourseAnalytics(courseId) {
     const attentionCount = annotated.filter(c => c.flags.requiresAttention).length;
     const focusTime = payload.focusTime || '\u2014';
 
-    document.getElementById('ns-analytics-readiness').innerHTML = `${readiness}<span class="ns-stat-sub">/100</span>`;
+    document.getElementById('ns-analytics-readiness').innerHTML = `${readiness} <span class="ns-stat-sub">/100</span>`;
     document.getElementById('ns-analytics-readiness-trend').textContent = readiness >= 75 ? '\u2191 On track' : 'Needs improvement';
-    document.getElementById('ns-analytics-readiness-trend').className = `ns-stat-trend ${readiness >= 75 ? 'positive' : 'negative'}`;
-    document.getElementById('ns-analytics-predicted').innerHTML = `${predicted}<span class="ns-stat-sub">%</span>`;
+    document.getElementById('ns-analytics-readiness-trend').className = `ns - stat - trend ${readiness >= 75 ? 'positive' : 'negative'} `;
+    document.getElementById('ns-analytics-predicted').innerHTML = `${predicted} <span class="ns-stat-sub">%</span>`;
     document.getElementById('ns-analytics-predicted-trend').textContent = `Based on current mastery trend`;
     document.getElementById('ns-analytics-focus').textContent = focusTime;
     document.getElementById('ns-analytics-attention-count').textContent = attentionCount;
@@ -1387,7 +1397,7 @@ function renderAttentionList(annotated) {
         return;
     }
     list.innerHTML = attentionItems.map(c => `
-        <div class="ns-attention-item">
+    < div class="ns-attention-item" >
             <div class="ns-attention-info">
                 <h4>${c.name}</h4>
                 <p>Mastery: ${Math.round(c.mastery * 100)}% &bull; Weight: ${Math.round(c.exam_weightage * 100)}%</p>
@@ -1395,7 +1405,7 @@ function renderAttentionList(annotated) {
             </div>
             <button class="ns-btn-primary" style="flex-shrink:0; margin-left:16px;"
                 onclick="openConceptDrawer('${c.id}')">Start Practice</button>
-        </div>
+        </div >
     `).join('');
 }
 
@@ -1413,9 +1423,9 @@ function renderConceptTableFilters(annotated) {
     ];
 
     filters.innerHTML = options.map(opt => `
-        <button class="ns-badge ${state.analyticsFilter === opt.key ? 'ns-badge-info' : 'ns-badge-neutral'}"
-            style="cursor:pointer; padding:6px 14px; border:none;"
-            onclick="setAnalyticsFilter('${opt.key}')">${opt.label}</button>
+    < button class="ns-badge ${state.analyticsFilter === opt.key ? 'ns-badge-info' : 'ns-badge-neutral'}"
+style = "cursor:pointer; padding:6px 14px; border:none;"
+onclick = "setAnalyticsFilter('${opt.key}')" > ${opt.label}</button >
     `).join('');
 }
 
