@@ -1600,6 +1600,48 @@ body.north-star .hidden-ns {
     }
 }
 
+/* ── Iframe (Start Session) view ─────────────────────────────────────── */
+.ns-iframe-view {
+    padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.ns-iframe-view.active {
+    display: flex;
+}
+
+.ns-iframe-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    background: var(--ns-bg);
+}
+
+.ns-iframe-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid #e2e8f0;
+    border-top-color: var(--ns-primary);
+    border-radius: 50%;
+    animation: ns-spin 0.9s linear infinite;
+}
+
+@keyframes ns-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#ns-app-iframe {
+    flex: 1;
+    min-height: 0;
+}
+
 /* CARDS */
 .ns-card {
     background: var(--ns-surface);
@@ -2437,4 +2479,189 @@ body.north-star .hidden-ns {
 
 .ns-quiz-feedback.incorrect {
     color: var(--ns-danger);
+}
+
+/* ===== TimeMap v2 (week time-grid) ===== */
+.ns-cal2 {
+    width: 100%;
+}
+
+.ns-cal2-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.ns-cal2-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--ns-text-main);
+}
+
+.ns-cal2-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ns-cal2-btn {
+    border: 1px solid var(--ns-sidebar-border);
+    background: var(--ns-surface);
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.ns-cal2-btn.primary {
+    background: var(--ns-primary);
+    border-color: var(--ns-primary);
+    color: #fff;
+}
+
+.ns-cal2-dayhead {
+    display: grid;
+    grid-template-columns: 72px repeat(7, 1fr);
+    gap: 0;
+    margin-bottom: 8px;
+}
+
+.ns-cal2-timecol-spacer {
+    height: 48px;
+}
+
+.ns-cal2-daycell {
+    height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    color: var(--ns-text-muted);
+}
+
+.ns-cal2-daycell.active {
+    background: var(--ns-primary-light);
+    color: var(--ns-primary);
+    font-weight: 700;
+}
+
+.ns-cal2-dayname {
+    font-size: 0.7rem;
+    letter-spacing: .06em;
+}
+
+.ns-cal2-daynum {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.ns-cal2-body {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 12px;
+}
+
+.ns-cal2-timecol {
+    position: relative;
+    border-right: 1px solid var(--ns-sidebar-border);
+}
+
+.ns-cal2-timelabel {
+    position: absolute;
+    left: 0;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--ns-text-muted);
+}
+
+.ns-cal2-gridwrap {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+}
+
+.ns-cal2-daycol {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--ns-sidebar-border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.ns-cal2-hourline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(226, 232, 240, 0.85);
+}
+
+.ns-cal2-event {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    border-radius: 14px;
+    padding: 10px 10px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: var(--ns-shadow-sm);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.ns-cal2-event-time {
+    font-size: 0.72rem;
+    color: rgba(15, 23, 42, 0.65);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.ns-cal2-event-title {
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--ns-text-main);
+    margin-bottom: 6px;
+}
+
+.ns-cal2-event-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ns-cal2-chip {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    color: rgba(15, 23, 42, 0.7);
+    font-weight: 700;
+}
+
+/* kinds */
+.ns-cal2-event.kind-lecture {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.ns-cal2-event.kind-tutorial {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.ns-cal2-event.kind-lab {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.ns-cal2-event.kind-study {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.ns-cal2-event.kind-project {
+    background: rgba(15, 23, 42, 0.06);
+    border: 2px dashed rgba(15, 23, 42, 0.35);
+}
+
+.ns-cal2-event.kind-missed {
+    background: rgba(239, 68, 68, 0.10);
+    border: 2px dashed rgba(239, 68, 68, 0.45);
 }

@@ -112,10 +112,11 @@ const state = {
 
     // --- TIMEMAP / CALENDAR STATE ---
     calendarBlocks: [
-        { id: 'c1', title: 'Machine Learning Lec', day: 0, type: 'task' },
-        { id: 'c2', title: 'Deep Work (AI Suggested)', day: 1, type: 'focus' },
-        { id: 'c3', title: 'Assignment Due', day: 4, type: 'due' },
-        { id: 'c4', title: 'Review Graphs', day: 3, type: 'task' }
+        { id: 'c1', title: 'Machine Learning', day: 0, kind: 'lecture', startMin: 600, endMin: 720, code: 'Lec' },          // 10:00–12:00
+        { id: 'c2', title: 'Deep Work (AI Suggested)', day: 1, kind: 'tutorial', startMin: 600, endMin: 660, code: 'LT-8' }, // 10:00–11:00
+        { id: 'c3', title: 'Review Graphs', day: 3, kind: 'lecture', startMin: 540, endMin: 600, code: 'LT-8' },             // 09:00–10:00
+        { id: 'c4', title: 'Assignment Due', day: 4, kind: 'missed', startMin: 600, endMin: 660, code: 'MISSED' },           // 10:00–11:00
+        { id: 'c5', title: 'Hackathon Prep', day: 4, kind: 'project', startMin: 780, endMin: 1080, code: 'PROJECT' },        // 13:00–18:00
     ]
 };
 
@@ -593,57 +594,246 @@ function renderQuizModal() {
 }
 
 // Calendar CRUD Logic
+// -------- Time helpers --------
+function startOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // Sun=0
+    const diff = (day === 0 ? -6 : 1) - day; // Monday start
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+function addDays(date, n) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
+}
+function fmtMonthYear(date) {
+    return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+function fmtDayNum(date) { return date.getDate(); }
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function minToHHMM(min) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${pad2(h)}:${pad2(m)}`;
+}
+function hhmmToMin(hhmm) {
+    if (!hhmm || !hhmm.includes(':')) return null;
+    const [h, m] = hhmm.split(':').map(x => parseInt(x, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+}
+function minToLabel(min) {
+    const h = Math.floor(min / 60);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hh = ((h + 11) % 12) + 1;
+    return `${hh} ${ampm}`;
+}
+
+// -------- view state --------
+state.calendarView = state.calendarView || {
+    weekStart: startOfWeek(new Date())
+};
+
 function renderCalendar() {
     const container = document.getElementById('ns-calendar-container');
     if (!container) return;
 
-    let html = '<div class="ns-tm-grid">';
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    days.forEach(d => html += `<div class="ns-tm-day">${d}</div>`);
+    const weekStart = state.calendarView.weekStart;
+    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-    for (let d = 0; d < 7; d++) {
-        html += `<div class="ns-tm-col" onclick="openCalModal(${d})">`;
-        const blocks = state.calendarBlocks.filter(b => parseInt(b.day) === d);
-        blocks.forEach(b => {
-            html += `<div class="ns-tm-slot bg-${b.type}" onclick="event.stopPropagation(); openCalModal(${d}, '${b.id}')">${b.title}</div>`;
-        });
-        html += `</div>`;
-    }
-    html += '</div>';
-    container.innerHTML = html;
+    // match your screenshot-ish range
+    const dayStartMin = 6 * 60;   // 06:00
+    const dayEndMin = 19 * 60;    // 19:00
+    const pxPerMin = 1.05;
+    const gridHeight = (dayEndMin - dayStartMin) * pxPerMin;
+
+    const now = new Date();
+    const isSameDay = (a, b) =>
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+
+    // hours for grid lines + labels
+    const hours = [];
+    for (let t = dayStartMin; t <= dayEndMin; t += 60) hours.push(t);
+
+    // Header (month + controls)
+    const headerHtml = `
+      <div class="ns-cal2-header">
+        <div class="ns-cal2-title">${fmtMonthYear(weekStart)}</div>
+        <div class="ns-cal2-controls">
+          <button class="ns-cal2-btn" id="ns-cal2-prev" aria-label="Previous week">‹</button>
+          <button class="ns-cal2-btn primary" id="ns-cal2-today">Today</button>
+          <button class="ns-cal2-btn" id="ns-cal2-next" aria-label="Next week">›</button>
+        </div>
+      </div>
+    `;
+
+    // Day header row
+    const dayHeaderHtml = `
+      <div class="ns-cal2-dayhead">
+        <div class="ns-cal2-timecol-spacer"></div>
+        ${days.map((d, idx) => {
+        const label = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+        const active = isSameDay(d, now) ? 'active' : '';
+        return `
+              <div class="ns-cal2-daycell ${active}" data-day="${idx}">
+                <div class="ns-cal2-dayname">${label}</div>
+                <div class="ns-cal2-daynum">${fmtDayNum(d)}</div>
+              </div>
+            `;
+    }).join('')}
+      </div>
+    `;
+
+    // Time label column
+    const timeColHtml = `
+      <div class="ns-cal2-timecol" style="height:${gridHeight}px">
+        ${hours.map((t) => `
+          <div class="ns-cal2-timelabel" style="top:${(t - dayStartMin) * pxPerMin}px">${minToLabel(t)}</div>
+        `).join('')}
+      </div>
+    `;
+
+    // Grid with day columns
+    const gridHtml = `
+      <div class="ns-cal2-gridwrap" style="height:${gridHeight}px">
+        ${Array.from({ length: 7 }, (_, dayIdx) => {
+        const hourLines = hours.map((t) =>
+            `<div class="ns-cal2-hourline" style="top:${(t - dayStartMin) * pxPerMin}px"></div>`
+        ).join('');
+
+        const events = (state.calendarBlocks || [])
+            .filter(e => Number(e.day) === dayIdx)
+            .map(e => {
+                const start = Math.max(e.startMin ?? dayStartMin, dayStartMin);
+                const end = Math.min(e.endMin ?? (start + 60), dayEndMin);
+
+                const top = (start - dayStartMin) * pxPerMin;
+                const height = Math.max(28, (end - start) * pxPerMin);
+
+                const kind = e.kind || 'study';
+                const timeRange = `${minToHHMM(start)} - ${minToHHMM(end)}`;
+
+                return `
+                      <div class="ns-cal2-event kind-${kind}"
+                           style="top:${top}px; height:${height}px"
+                           onclick="openCalModal(${dayIdx}, '${e.id}'); event.stopPropagation();">
+                        <div class="ns-cal2-event-time">${timeRange}</div>
+                        <div class="ns-cal2-event-title">${e.title || 'Untitled'}</div>
+                        <div class="ns-cal2-event-meta">
+                          ${e.code ? `<span class="ns-cal2-chip">${e.code}</span>` : ''}
+                          <span class="ns-cal2-chip">${kind.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    `;
+            }).join('');
+
+        return `
+              <div class="ns-cal2-daycol" data-day="${dayIdx}" onclick="openCalModal(${dayIdx})">
+                ${hourLines}
+                ${events}
+              </div>
+            `;
+    }).join('')}
+      </div>
+    `;
+
+    container.innerHTML = `
+      <div class="ns-cal2">
+        ${headerHtml}
+        ${dayHeaderHtml}
+        <div class="ns-cal2-body">
+          ${timeColHtml}
+          ${gridHtml}
+        </div>
+      </div>
+    `;
+
+    // Controls
+    document.getElementById('ns-cal2-prev')?.addEventListener('click', () => {
+        state.calendarView.weekStart = addDays(state.calendarView.weekStart, -7);
+        renderCalendar();
+    });
+    document.getElementById('ns-cal2-next')?.addEventListener('click', () => {
+        state.calendarView.weekStart = addDays(state.calendarView.weekStart, 7);
+        renderCalendar();
+    });
+    document.getElementById('ns-cal2-today')?.addEventListener('click', () => {
+        state.calendarView.weekStart = startOfWeek(new Date());
+        renderCalendar();
+    });
 }
 
 function bindCalendarEvents() {
     document.getElementById('ns-cal-add-btn')?.addEventListener('click', () => openCalModal(0));
-    document.getElementById('ns-cal-cancel')?.addEventListener('click', () => document.getElementById('ns-cal-modal').classList.add('hidden'));
-    document.getElementById('ns-cal-modal-overlay')?.addEventListener('click', () => document.getElementById('ns-cal-modal').classList.add('hidden'));
+
+    document.getElementById('ns-cal-cancel')?.addEventListener('click', () =>
+        document.getElementById('ns-cal-modal').classList.add('hidden')
+    );
+
+    document.getElementById('ns-cal-modal-overlay')?.addEventListener('click', () =>
+        document.getElementById('ns-cal-modal').classList.add('hidden')
+    );
 
     document.getElementById('ns-cal-save')?.addEventListener('click', () => {
-        const id = document.getElementById('ns-cal-modal').dataset.editId || 'c' + Date.now();
-        const title = document.getElementById('ns-cal-input-title').value;
-        const day = document.getElementById('ns-cal-input-day').value;
-        const type = document.getElementById('ns-cal-input-type').value;
+        const modal = document.getElementById('ns-cal-modal');
+        const editId = modal.dataset.editId || '';
+        const id = editId || ('c' + Date.now());
 
-        if (title.trim() === '') return;
+        const title = document.getElementById('ns-cal-input-title').value.trim();
+        const day = parseInt(document.getElementById('ns-cal-input-day').value, 10);
+        const kind = document.getElementById('ns-cal-input-kind').value;
+        const code = document.getElementById('ns-cal-input-code').value.trim();
 
-        if (document.getElementById('ns-cal-modal').dataset.editId) {
-            const block = state.calendarBlocks.find(b => b.id === id);
-            if (block) { block.title = title; block.day = day; block.type = type; }
-        } else {
-            state.calendarBlocks.push({ id, title, day, type });
+        const startMin = hhmmToMin(document.getElementById('ns-cal-input-start').value);
+        const endMin = hhmmToMin(document.getElementById('ns-cal-input-end').value);
+
+        if (!title) return;
+
+        // basic validation
+        if (startMin == null || endMin == null || endMin <= startMin) {
+            alert('Please set a valid start/end time (end must be after start).');
+            return;
         }
 
-        document.getElementById('ns-cal-modal').classList.add('hidden');
+        if (editId) {
+            const block = state.calendarBlocks.find(b => b.id === id);
+            if (block) {
+                block.title = title;
+                block.day = day;
+                block.kind = kind;
+                block.code = code;
+                block.startMin = startMin;
+                block.endMin = endMin;
+            }
+        } else {
+            state.calendarBlocks.push({
+                id,
+                title,
+                day,
+                kind,
+                code,
+                startMin,
+                endMin
+            });
+        }
+
+        modal.classList.add('hidden');
         renderCalendar();
     });
 
     document.getElementById('ns-cal-delete')?.addEventListener('click', () => {
-        const id = document.getElementById('ns-cal-modal').dataset.editId;
-        if (id) {
-            state.calendarBlocks = state.calendarBlocks.filter(b => b.id !== id);
-            document.getElementById('ns-cal-modal').classList.add('hidden');
-            renderCalendar();
-        }
+        const modal = document.getElementById('ns-cal-modal');
+        const id = modal.dataset.editId;
+        if (!id) return;
+
+        state.calendarBlocks = state.calendarBlocks.filter(b => b.id !== id);
+        modal.classList.add('hidden');
+        renderCalendar();
     });
 }
 
@@ -652,21 +842,35 @@ function openCalModal(dayIdx, editId = null) {
     modal.classList.remove('hidden');
     modal.dataset.editId = editId || '';
 
+    const delBtn = document.getElementById('ns-cal-delete');
+
     if (editId) {
         document.getElementById('ns-cal-modal-title').textContent = 'Edit Block';
-        document.getElementById('ns-cal-delete').classList.remove('hidden');
+        delBtn.classList.remove('hidden');
+
         const block = state.calendarBlocks.find(b => b.id === editId);
-        if (block) {
-            document.getElementById('ns-cal-input-title').value = block.title;
-            document.getElementById('ns-cal-input-day').value = block.day;
-            document.getElementById('ns-cal-input-type').value = block.type;
-        }
+        if (!block) return;
+
+        document.getElementById('ns-cal-input-title').value = block.title || '';
+        document.getElementById('ns-cal-input-day').value = String(block.day ?? dayIdx);
+        document.getElementById('ns-cal-input-kind').value = block.kind || 'study';
+        document.getElementById('ns-cal-input-code').value = block.code || '';
+
+        document.getElementById('ns-cal-input-start').value = minToHHMM(block.startMin ?? 600);
+        document.getElementById('ns-cal-input-end').value = minToHHMM(block.endMin ?? 660);
+
     } else {
         document.getElementById('ns-cal-modal-title').textContent = 'Add Block';
-        document.getElementById('ns-cal-delete').classList.add('hidden');
+        delBtn.classList.add('hidden');
+
         document.getElementById('ns-cal-input-title').value = '';
-        document.getElementById('ns-cal-input-day').value = dayIdx;
-        document.getElementById('ns-cal-input-type').value = 'task';
+        document.getElementById('ns-cal-input-day').value = String(dayIdx);
+        document.getElementById('ns-cal-input-kind').value = 'study';
+        document.getElementById('ns-cal-input-code').value = '';
+
+        // nice defaults
+        document.getElementById('ns-cal-input-start').value = '10:00';
+        document.getElementById('ns-cal-input-end').value = '11:00';
     }
 }
 

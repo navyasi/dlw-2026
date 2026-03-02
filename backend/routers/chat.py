@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -31,8 +31,8 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    notebook_id: int | None = None
-    course_id: int | None = None   # if set, context spans all course notebooks
+    notebook_id: Optional[int] = None
+    course_id: Optional[int] = None   # if set, context spans all course notebooks
     messages: list[ChatMessage]    # conversation history
 
 
