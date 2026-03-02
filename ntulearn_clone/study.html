@@ -64,19 +64,15 @@
                         </svg>
                         <span class="ns-nav-label">TimeMap</span>
                     </li>
-
-                    <!-- Start Session (FIXED) -->
-                    <a class="ns-nav-item ns-highlight-tab" href="http://localhost:3000/course/1"
-                        style="text-decoration:none; color:inherit;" id="ns-start-session-link">
+                    <li class="ns-nav-item ns-highlight-tab" data-target="view-deepdive" title="Start Session">
                         <svg id="ns-sidebar-star-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
                             stroke="currentColor" stroke-width="2">
                             <polygon
                                 points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
                             </polygon>
                         </svg>
-
                         <span class="ns-nav-label">Start Session</span>
-                    </a>
+                    </li>
 
                     <!-- Timeline Section -->
                     <li class="ns-nav-static-item">
@@ -154,17 +150,17 @@
                         </div>
                         <div class="ns-card ns-stat-card">
                             <div class="ns-stat-title">Readiness Score</div>
-                            <div class="ns-stat-value">92<span class="ns-stat-sub">/100</span></div>
-                            <div class="ns-stat-trend positive">↑ 4 pts this week</div>
+                            <div class="ns-stat-value" id="ns-stat-readiness">92<span class="ns-stat-sub">/100</span></div>
+                            <div class="ns-stat-trend positive" id="ns-stat-readiness-trend">↑ 4 pts this week</div>
                         </div>
                         <div class="ns-card ns-stat-card">
                             <div class="ns-stat-title">Predicted Score</div>
-                            <div class="ns-stat-value">88<span class="ns-stat-sub">%</span></div>
-                            <div class="ns-stat-trend">Projected: 82 → 88</div>
+                            <div class="ns-stat-value" id="ns-stat-predicted">88<span class="ns-stat-sub">%</span></div>
+                            <div class="ns-stat-trend" id="ns-stat-predicted-trend">Projected: 82 → 88</div>
                         </div>
                         <div class="ns-card ns-stat-card">
                             <div class="ns-stat-title">Focus Time</div>
-                            <div class="ns-stat-value">4h 20m</div>
+                            <div class="ns-stat-value" id="ns-stat-focus">4h 20m</div>
                             <div class="ns-stat-trend">This week</div>
                         </div>
                     </div>
@@ -184,7 +180,7 @@
                             </div>
                             <div class="ns-card ns-insights-card">
                                 <h3>Quick Insights</h3>
-                                <ul class="ns-insights-list">
+                                <ul class="ns-insights-list" id="ns-insights-list">
                                     <li><strong>Machine Learning:</strong> You are struggling with Regularization.
                                         Review recommended.</li>
                                     <li><strong>Data Structures:</strong> Graph traversals mastery is up 15%.</li>
