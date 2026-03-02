@@ -3,7 +3,7 @@ import re
 from openai import OpenAI
 
 
-TEXT_MODEL = "gpt-4.1"
+TEXT_MODEL = "gpt-4o-mini"
 
 def generate_kinesthetic_plan(client: OpenAI, pdf_text: str) -> dict:
     system = (
