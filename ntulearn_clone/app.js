@@ -131,8 +131,8 @@ function init() {
         renderNsAppCourses();
         // Globally render the timeline and progress bar in the sidebar
         renderStudySidebar();
-        // We still need to bind the North Star deep dive specific events
-        bindNorthStarEvents();
+        // Fetch live data from backend and update widgets
+        fetchAndApplyBackendData();
 
         playCinematicReveal();
     } else {
@@ -874,6 +874,92 @@ function openCalModal(dayIdx, editId = null) {
     }
 }
 
+/* =========================================================================
+   BACKEND INTEGRATION — fetch live data from /integrated-weekly
+   ========================================================================= */
+
+async function fetchAndApplyBackendData() {
+    const payload = {
+        student_id: "student_demo",
+        subject: "deep_learning",
+        exam_weights: {
+            linear_algebra:   0.15,
+            calculus:         0.10,
+            chain_rule:       0.15,
+            gradient_descent: 0.20,
+            backprop:         0.25,
+            cnn:              0.10,
+            transformers:     0.05
+        },
+        days_until_exam: 14,
+        current_weekly_minutes: 240
+    };
+
+    try {
+        const res = await fetch('http://localhost:8000/integrated-weekly', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) { console.warn('Backend returned', res.status); return; }
+        const data = await res.json();
+
+        // 1. Stats cards
+        const pm = data.weekly_report.predicted_score_model;
+        const baseScore = Math.round(pm.base_expected);
+        const recScore  = Math.round(pm.simulation_recommended_plan.expected_score);
+
+        const readinessEl = document.getElementById('ns-stat-readiness');
+        if (readinessEl) readinessEl.innerHTML = `${baseScore}<span class="ns-stat-sub">/100</span>`;
+
+        const predictedEl = document.getElementById('ns-stat-predicted');
+        if (predictedEl) predictedEl.innerHTML = `${recScore}<span class="ns-stat-sub">%</span>`;
+
+        const trendEl = document.getElementById('ns-stat-predicted-trend');
+        if (trendEl) trendEl.textContent = `Projected: ${baseScore} → ${recScore}`;
+
+        // 2. Quick Insights
+        const recs = data.weekly_report.prescriptive_analysis.recommendations.slice(0, 3);
+        const insightsList = document.getElementById('ns-insights-list');
+        if (insightsList && recs.length > 0) {
+            insightsList.innerHTML = recs.map(r =>
+                `<li><strong>${r.concept_name}:</strong> ${r.rationale}</li>`
+            ).join('');
+        }
+
+        // 3. Today's schedule → sidebar timeline
+        if (data.todays_schedule && data.todays_schedule.blocks && data.todays_schedule.blocks.length > 0) {
+            let cursor = 9 * 60; // start at 09:00
+            state.todayPlan = data.todays_schedule.blocks.map((b, i) => {
+                const start = minToHHMM(cursor);
+                cursor += b.duration_minutes;
+                const end = minToHHMM(cursor);
+                cursor += 5; // 5-min break between blocks
+                const conceptName = b.concept_ids[0]
+                    ? b.concept_ids[0].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                    : `Block ${i + 1}`;
+                return {
+                    id: `p${i + 1}`,
+                    timeStart: start,
+                    timeEnd: end,
+                    subjectTitle: conceptName,
+                    status: i === 0 ? 'active' : 'pending',
+                    subjectId: `subj${(i % 3) + 1}`
+                };
+            });
+            state.todayProgressPct = 0;
+            renderStudySidebar();
+        }
+
+        // 4. Store top concepts for course mastery rings
+        state.topConcepts = data.weekly_report.priority_ranking.top_concepts;
+        renderNsAppCourses();
+
+    } catch (e) {
+        console.warn('Backend not reachable, using dummy data:', e);
+    }
+}
+
 // Initialize the app when the DOM is ready
 document.addEventListener('DOMContentLoaded', init);
 
@@ -960,7 +1046,11 @@ function renderNsAppCourses() {
     const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EC4899'];
 
     grid.innerHTML = displayCourses.map((c, idx) => {
-        const mastery = Math.floor(Math.random() * 40) + 40; // 40-80%
+        // Use real mastery from backend if available, else fallback
+        const conceptMastery = state.topConcepts && state.topConcepts[idx]
+            ? Math.round(state.topConcepts[idx].mastery * 100)
+            : Math.floor(Math.random() * 40) + 40;
+        const mastery = conceptMastery;
         const color = colors[idx % colors.length];
         return `
         <div class="ns-card ns-course-card">
@@ -981,7 +1071,7 @@ function renderNsAppCourses() {
                 <div class="ns-progress-bg">
                     <div class="ns-progress-fill" style="width: ${mastery}%; background: ${color}"></div>
                 </div>
-                <div class="ns-weak-topics">Requires Attention: Arrays, Pointers</div>
+                <div class="ns-weak-topics">Requires Attention: ${state.topConcepts && state.topConcepts[idx] ? state.topConcepts[idx].concept_name : 'Review needed'}</div>
             </div>
         </div>
         `;
