@@ -104,3 +104,28 @@ def compute_kms(plan: dict, completed_ids: list, quiz_answers: dict) -> dict:
         "quiz_score": round(quiz_score, 2),
         "kinesthetic_mastery_score": round(kms, 2),
     }
+
+def compute_topic_mastery(plan: dict, quiz_answers: dict) -> dict:
+    """
+    Returns {concept: mastery_score (0-1)} for each concept in the plan's activities.
+    Score is derived from overall quiz accuracy (MCQ + short answer).
+    """
+    activities = plan.get("activities", [])
+    quiz = plan.get("quiz", {})
+    mcqs = quiz.get("mcq", [])
+    shorts = quiz.get("short", [])
+
+    correct_mcq = sum(
+        1 for q in mcqs
+        if quiz_answers.get(q["id"], "").strip().lower() == q["answer"].strip().lower()
+    )
+    correct_short = sum(
+        1 for q in shorts
+        if q["answer"].strip().lower() in quiz_answers.get(q["id"], "").strip().lower()
+    )
+
+    total = len(mcqs) + len(shorts)
+    accuracy = (correct_mcq + correct_short) / max(1, total)
+
+    concepts = list({a["concept"] for a in activities if "concept" in a})
+    return {concept: round(accuracy, 3) for concept in concepts}

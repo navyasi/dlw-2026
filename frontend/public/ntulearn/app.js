@@ -299,8 +299,6 @@ function init() {
         // Globally render the timeline and progress bar in the sidebar
         renderStudySidebar();
         // We still need to bind the North Star deep dive specific events
-        bindNorthStarEvents();
-
         playCinematicReveal();
         // Fetch live data from backend (falls back to demo data on error)
         fetchDashboardData();
