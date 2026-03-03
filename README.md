@@ -44,6 +44,15 @@ npm run dev
 
 Open **http://localhost:3000**
 
+### 5. Start the NTULearn clone (frontend)
+
+```bash
+cd ntulearn_clone
+python3 -m http.server 5500
+```
+
+Open **http://localhost:5500**
+
 ---
 
 ## What happens on first boot (visual backend)
@@ -129,6 +138,11 @@ dlweek/
 │   └── lib/
 │       └── api.ts              Typed API client
 │
+├── ntulearn_clone/             NTULearn UI clone (Ishita's static frontend)
+│   ├── index.html
+│   ├── study.html
+│   ├── app.js
+│   └── styles.css
 ├── data/
 │   └── sample_curriculum.json  Concept definitions with prerequisite edges
 ├── sample_data/
