@@ -1,6 +1,6 @@
-# dlweek — AI Adaptive Learning Platform
+# dlweek — North Star, An AI Adaptive Learning Platform
 
-AI-powered adaptive learning engine for a Blackboard "Study Mode" (Microsoft hackathon). The platform combines personalised content generation (visual, auditory, kinesthetic) with a mastery tracking engine (Bayesian Knowledge Tracing), intelligent scheduling, and weekly analytics.
+North Star is an AI-powered adaptive learning engine for a Blackboard "Study Mode" (Microsoft hackathon). The platform combines personalised content generation (visual, auditory, kinesthetic) with a mastery tracking engine (Bayesian Knowledge Tracing), intelligent scheduling, and weekly analytics.
 
 ---
 
