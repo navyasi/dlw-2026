@@ -108,16 +108,17 @@ dlweek/
 │   ├── pdf_utils.py            PyMuPDF per-page extractor
 │   ├── scraper.py              BeautifulSoup article scraper
 │   ├── seed.py                 Auto-seed pipeline (runs at startup)
+│   ├── run_seed.py             Manual seed runner (dev utility)
 │   └── routers/
 │       ├── notebook.py         GET /notebooks, GET /notebooks/{id}, PATCH block
-│       ├── concepts.py         GET/POST /concept-map/{id}
+│       ├── concepts.py         GET/POST /concept-map/{id}, POST mastery update
 │       ├── tutorial.py         GET /tutorial/{id}/flow, POST flag/check
 │       ├── audio.py            POST /audio/{id}/generate
 │       ├── chat.py             POST /chat/
 │       ├── course.py           GET /courses/, GET /courses/{id}
 │       ├── quiz.py             POST /quiz/{id}/generate, POST /quiz/grade
 │       ├── recall.py           POST /recall/grade
-│       └── integration.py      POST /weekly-report, /integrated-weekly, /generate-lecture, etc.
+│       └── integration.py      Mirrors adaptive backend endpoints (port 8000 access)
 │
 ├── frontend/
 │   ├── app/
@@ -168,6 +169,7 @@ dlweek/
 | PATCH | `/notebooks/{id}/blocks/{bid}` | Update a note block |
 | GET | `/concept-map/{id}` | Get concept nodes + edges |
 | POST | `/concept-map/{id}/generate` | (Re)generate concept map |
+| POST | `/concept-map/{id}/mastery/{concept_id}` | Update mastery for a concept |
 | GET | `/tutorial/{id}/flow` | Get tutorial solution flow |
 | POST | `/tutorial/{id}/flag` | Flag a step as "I'm stuck" |
 | POST | `/tutorial/check` | Check a free-text answer |
@@ -184,6 +186,8 @@ dlweek/
 | POST | `/recall/grade` | Grade a free-recall response |
 
 ### Adaptive learning backend (port 8001)
+
+> These endpoints are also available on port 8000 via `backend/routers/integration.py`, so the Next.js frontend only needs to talk to one server.
 
 | Method | Path | Description |
 |---|---|---|
