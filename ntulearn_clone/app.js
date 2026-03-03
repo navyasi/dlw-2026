@@ -75,9 +75,9 @@ const state = {
 
     // --- KHAN ACADEMY / STUDY MODE STATE ---
     todayPlan: [
-        { id: 'p1', timeStart: '09:00', timeEnd: '09:45', subjectTitle: 'Non-contact interactions', status: 'active', subjectId: 'subj1' },
-        { id: 'p2', timeStart: '10:00', timeEnd: '10:50', subjectTitle: 'Calculus: Optimization', status: 'pending', subjectId: 'subj2' },
-        { id: 'p3', timeStart: '13:00', timeEnd: '14:30', subjectTitle: 'Data Structures: Graphs', status: 'pending', subjectId: 'subj3' }
+        { id: 'p1', timeStart: '09:00', timeEnd: '10:00', subjectTitle: 'SC3010: Software Security', status: 'active', subjectId: 'subj1' },
+        { id: 'p2', timeStart: '10:00', timeEnd: '11:00', subjectTitle: 'SC2002: Polymorphism', status: 'pending', subjectId: 'subj2' },
+        { id: 'p3', timeStart: '13:00', timeEnd: '14:30', subjectTitle: 'SC2006: Design Patterns', status: 'pending', subjectId: 'subj3' }
     ],
     todayProgressPct: 42,
     subjects: {
@@ -109,14 +109,36 @@ const state = {
     quizActive: false,
     quizCurrentQuestion: 1,
     quizScore: 0,
-
+    tags: [
+        { name: 'SC2207', color: '#b48a71', badgeColor: '#b48a71' },
+        { name: 'SC3010', color: '#5b89c6', badgeColor: '#5b89c6' },
+        { name: 'SC2006', color: '#ec4899', badgeColor: '#ec4899' },
+        { name: 'SC2002', color: '#22c55e', badgeColor: '#22c55e' },
+        { name: 'HE3010', color: '#a17bc9', badgeColor: '#a17bc9' },
+        { name: 'HW0288', color: '#679e78', badgeColor: '#679e78' },
+        { name: 'SC2079', color: '#888888', badgeColor: '#888888' }
+    ],
+    currentEditTag: null,
     // --- TIMEMAP / CALENDAR STATE ---
     calendarBlocks: [
-        { id: 'c1', title: 'Machine Learning', day: 0, kind: 'lecture', startMin: 600, endMin: 720, code: 'Lec' },          // 10:00–12:00
-        { id: 'c2', title: 'Deep Work (AI Suggested)', day: 1, kind: 'tutorial', startMin: 600, endMin: 660, code: 'LT-8' }, // 10:00–11:00
-        { id: 'c3', title: 'Review Graphs', day: 3, kind: 'lecture', startMin: 540, endMin: 600, code: 'LT-8' },             // 09:00–10:00
-        { id: 'c4', title: 'Assignment Due', day: 4, kind: 'missed', startMin: 600, endMin: 660, code: 'MISSED' },           // 10:00–11:00
-        { id: 'c5', title: 'Hackathon Prep', day: 4, kind: 'project', startMin: 780, endMin: 1080, code: 'PROJECT' },        // 13:00–18:00
+        // ── SC3010: Computer Security ──
+        { id: 'c_sc3010_lec_mon', title: 'SC3010: Computer Security', day: 0, kind: 'lecture', startMin: 600, endMin: 720, code: 'LEC' }, // Mon 10–12
+        { id: 'c_sc3010_tut_wed', title: 'SC3010: Computer Security', day: 2, kind: 'tutorial', startMin: 780, endMin: 840, code: 'TUT' }, // Wed 13–14
+        { id: 'c_sc3010_lab_fri', title: 'SC3010: Computer Security', day: 4, kind: 'lab', startMin: 540, endMin: 660, code: 'LAB' }, // Fri 09–11
+
+        // ── SC2002: OOP ──
+        { id: 'c_sc2002_lec_mon', title: 'SC2002: OOP', day: 0, kind: 'lecture', startMin: 780, endMin: 900, code: 'LEC' }, // Mon 13–15
+        { id: 'c_sc2002_tut_thu', title: 'SC2002: OOP', day: 3, kind: 'tutorial', startMin: 600, endMin: 660, code: 'TUT' }, // Thu 10–11
+        { id: 'c_sc2002_lab_thu', title: 'SC2002: OOP', day: 3, kind: 'lab', startMin: 660, endMin: 780, code: 'LAB' }, // Thu 11–13
+
+        // ── SC2006: Software Engineering ──
+        { id: 'c_sc2006_lec_wed', title: 'SC2006: Software Engineering', day: 2, kind: 'lecture', startMin: 540, endMin: 660, code: 'LEC' }, // Wed 09–11
+        { id: 'c_sc2006_tut_fri', title: 'SC2006: Software Engineering', day: 4, kind: 'tutorial', startMin: 720, endMin: 780, code: 'TUT' }, // Fri 12–13
+
+        // ── Today's Study Sessions (Green) — Tuesday ──
+        { id: 't1', title: 'SC3010: Software Security', day: 1, kind: 'study', startMin: 540, endMin: 600, code: 'STUDY SESSION' }, // 09:00 - 10:00
+        { id: 't2', title: 'SC2002: Polymorphism', day: 1, kind: 'study', startMin: 600, endMin: 660, code: 'STUDY SESSION' }, // 10:00 - 11:00
+        { id: 't3', title: 'SC2006: Design Patterns', day: 1, kind: 'study', startMin: 780, endMin: 870, code: 'STUDY SESSION' }  // 13:00 - 14:30
     ]
 };
 
@@ -131,8 +153,6 @@ function init() {
         renderNsAppCourses();
         // Globally render the timeline and progress bar in the sidebar
         renderStudySidebar();
-        // Fetch live data from backend and update widgets
-        fetchAndApplyBackendData();
 
         playCinematicReveal();
     } else {
@@ -646,7 +666,7 @@ function renderCalendar() {
 
     const dayStartMin = 6 * 60;   // 06:00
     const dayEndMin = 22 * 60;    // 22:00
-    const PX_PER_HOUR = 64;
+    const PX_PER_HOUR = 120;
 
     const now = new Date();
     const isSameDay = (a, b) =>
@@ -721,10 +741,19 @@ function renderCalendar() {
 
                 const kind = e.kind || 'study';
                 const missed = kind === 'missed';
-                const bg = missed ? 'rgba(254,226,226,0.5)' : (kind === 'lecture' ? '#DBEAFE' : kind === 'tutorial' ? '#EDE9FE' : kind === 'busy' ? '#F1F5F9' : '#DCFCE7');
-                const bColor = missed ? '#EF4444' : (kind === 'lecture' ? '#3B82F6' : kind === 'tutorial' ? '#8B5CF6' : kind === 'busy' ? '#94A3B8' : '#22C55E');
-                const tColor = missed ? '#991B1B' : (kind === 'lecture' ? '#1E40AF' : kind === 'tutorial' ? '#5B21B6' : kind === 'busy' ? '#334155' : '#166534');
-                const badge = e.code || kind.toUpperCase();
+                let bg = missed ? 'rgba(254,226,226,0.5)' : (kind === 'lecture' ? '#DBEAFE' : kind === 'tutorial' ? '#EDE9FE' : kind === 'lab' ? '#FEF9C3' : kind === 'user' ? '#F1F5F9' : kind === 'busy' ? '#E2E8F0' : '#DCFCE7');
+                let bColor = missed ? '#EF4444' : (kind === 'lecture' ? '#3B82F6' : kind === 'tutorial' ? '#8B5CF6' : kind === 'lab' ? '#CA8A04' : kind === 'user' ? '#94A3B8' : kind === 'busy' ? '#64748B' : '#22C55E');
+                let tColor = missed ? '#991B1B' : (kind === 'lecture' ? '#1E40AF' : kind === 'tutorial' ? '#5B21B6' : kind === 'lab' ? '#854D0E' : kind === 'user' ? '#475569' : kind === 'busy' ? '#334155' : '#166534');
+                const badge = e.code || e.tag || kind.toUpperCase();
+
+                if (e.tag) {
+                    const tagInfo = (state.tags || []).find(t => t.name === e.tag);
+                    if (tagInfo) {
+                        bg = tagInfo.color + '25'; // e.g. 15% opacity hex roughly
+                        bColor = tagInfo.color;
+                        tColor = tagInfo.color;
+                    }
+                }
 
                 return `
                     <div class="cal-block ${missed ? 'cal-block--missed' : ''} ${kind === 'busy' ? 'cal-block--busy' : ''}"
@@ -734,8 +763,7 @@ function renderCalendar() {
                         <span class="cal-block__time">${minToHHMM(start)} – ${minToHHMM(end)}</span>
                     </div>
                     <div class="cal-block__title" style="margin-top:${kind === 'busy' ? 4 : 0}px">${e.title || 'Untitled'}</div>
-                    ${e.code && kind !== 'busy' ? `<div class="cal-block__sub">${e.code}</div>` : ''}
-                    <div class="cal-block__tags">
+                    <div class="cal-block__tags" style="margin-top:4px;">
                         <span class="cal-block__badge" style="background:${bColor}18; color:${bColor}; border:1px solid ${bColor}40;">${missed ? 'MISSED' : badge}</span>
                     </div>
                     </div>
@@ -780,8 +808,12 @@ function renderCalendar() {
           <span class="cal-legend__label">Tutorial</span>
         </div>
         <div class="cal-legend__item">
+          <span class="cal-legend__swatch" style="background:#FEF9C3; border-left:3px solid #CA8A04;"></span>
+          <span class="cal-legend__label">Lab</span>
+        </div>
+        <div class="cal-legend__item">
           <span class="cal-legend__swatch" style="background:#DCFCE7; border-left:3px solid #22C55E;"></span>
-          <span class="cal-legend__label">Study</span>
+          <span class="cal-legend__label">Study Session</span>
         </div>
         <div class="cal-legend__item">
           <span class="cal-legend__swatch" style="background:#F1F5F9; border-left:3px solid #94A3B8; border-style:dashed;"></span>
@@ -818,6 +850,68 @@ function renderCalendar() {
     });
 }
 
+function renderTagDropdown() {
+    const list = document.getElementById('ns-cal-tags-list');
+    const search = document.getElementById('ns-cal-tags-search').value.toLowerCase();
+
+    let html = '';
+    const filtered = (state.tags || []).filter(t => t.name.toLowerCase().includes(search));
+
+    filtered.forEach(tag => {
+        html += `
+            <li class="ns-tag-option" data-tag="${tag.name}" style="padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                <span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${tag.color}"></span>
+                ${tag.name}
+            </li>
+        `;
+    });
+
+    if (search.trim() && !filtered.find(t => t.name.toLowerCase() === search.trim())) {
+        html += `
+            <li class="ns-tag-option-create" data-tag="${search.trim()}" style="padding: 6px 12px; cursor: pointer; color: var(--ns-primary); display: flex; align-items: center; gap: 8px;">
+                <span style="display:flex;align-items:center;justify-content:center; width:12px; height:12px; border-radius:3px; font-weight:bold; font-size:14px; margin-left:-2px;">+</span>
+                Create "${search.trim()}"
+            </li>
+        `;
+    }
+
+    list.innerHTML = html;
+
+    list.querySelectorAll('.ns-tag-option').forEach(el => {
+        el.addEventListener('click', (e) => {
+            selectModalTag(e.currentTarget.dataset.tag);
+        });
+    });
+
+    list.querySelectorAll('.ns-tag-option-create').forEach(el => {
+        el.addEventListener('click', (e) => {
+            const newTagName = e.currentTarget.dataset.tag;
+            const colors = ['#8B5A2B', '#4682B4', '#9370DB', '#2E8B57', '#eab308', '#ef4444', '#ec4899', '#f97316'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const newTag = { name: newTagName, color: randomColor, badgeColor: randomColor };
+            if (!state.tags) state.tags = [];
+            state.tags.push(newTag);
+            selectModalTag(newTagName);
+        });
+    });
+}
+
+function selectModalTag(tagName) {
+    state.currentEditTag = tagName;
+    const tagInfo = (state.tags || []).find(t => t.name === tagName);
+    const triggerSpan = document.getElementById('ns-cal-current-tag');
+    if (tagInfo) {
+        triggerSpan.innerHTML = `
+            <span style="background:${tagInfo.color}33; color:${tagInfo.color}; padding: 2px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85rem;">
+                ${tagName}
+            </span>
+        `;
+    } else {
+        triggerSpan.textContent = "Empty";
+    }
+    document.getElementById('ns-cal-tags-dropdown').classList.add('hidden');
+}
+
 function bindCalendarEvents() {
     document.getElementById('ns-cal-add-btn')?.addEventListener('click', () => openCalModal(0));
 
@@ -829,22 +923,51 @@ function bindCalendarEvents() {
         document.getElementById('ns-cal-modal').classList.add('hidden')
     );
 
+    const tagsTrigger = document.getElementById('ns-cal-tags-trigger');
+    const tagsDropdown = document.getElementById('ns-cal-tags-dropdown');
+    const tagsSearch = document.getElementById('ns-cal-tags-search');
+
+    tagsTrigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tagsDropdown.classList.toggle('hidden');
+        if (!tagsDropdown.classList.contains('hidden')) {
+            tagsSearch.value = '';
+            renderTagDropdown();
+            tagsSearch.focus();
+        }
+    });
+
+    tagsSearch?.addEventListener('input', () => {
+        renderTagDropdown();
+    });
+
+    tagsSearch?.addEventListener('click', (e) => e.stopPropagation());
+    tagsDropdown?.addEventListener('click', (e) => e.stopPropagation());
+
+    document.addEventListener('click', () => {
+        if (tagsDropdown && !tagsDropdown.classList.contains('hidden')) {
+            tagsDropdown.classList.add('hidden');
+        }
+    });
+
     document.getElementById('ns-cal-save')?.addEventListener('click', () => {
         const modal = document.getElementById('ns-cal-modal');
         const editId = modal.dataset.editId || '';
         const id = editId || ('c' + Date.now());
 
-        const title = document.getElementById('ns-cal-input-title').value.trim();
+        const title = document.getElementById('ns-cal-input-title').value.trim() || 'Untitled';
         const day = parseInt(document.getElementById('ns-cal-input-day').value, 10);
-        const kind = document.getElementById('ns-cal-input-kind').value;
-        const code = document.getElementById('ns-cal-input-code').value.trim();
+
+        let kind = 'user';
+        if (state.currentEditTag) {
+            kind = 'study';
+        }
+
+        const tag = state.currentEditTag || '';
 
         const startMin = hhmmToMin(document.getElementById('ns-cal-input-start').value);
         const endMin = hhmmToMin(document.getElementById('ns-cal-input-end').value);
 
-        if (!title) return;
-
-        // basic validation
         if (startMin == null || endMin == null || endMin <= startMin) {
             alert('Please set a valid start/end time (end must be after start).');
             return;
@@ -856,7 +979,7 @@ function bindCalendarEvents() {
                 block.title = title;
                 block.day = day;
                 block.kind = kind;
-                block.code = code;
+                block.tag = tag;
                 block.startMin = startMin;
                 block.endMin = endMin;
             }
@@ -866,7 +989,7 @@ function bindCalendarEvents() {
                 title,
                 day,
                 kind,
-                code,
+                tag,
                 startMin,
                 endMin
             });
@@ -887,40 +1010,39 @@ function bindCalendarEvents() {
     });
 }
 
-function openCalModal(dayIdx, editId = null) {
+function openCalModal(dayIdx, editId = null, startMinClicked = null, evt = null) {
+    if (evt) evt.stopPropagation();
     const modal = document.getElementById('ns-cal-modal');
     modal.classList.remove('hidden');
     modal.dataset.editId = editId || '';
 
     const delBtn = document.getElementById('ns-cal-delete');
 
+    const selectedDate = addDays(state.calendarView.weekStart, dayIdx);
+    document.getElementById('ns-cal-text-date').textContent = selectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    document.getElementById('ns-cal-input-day').value = String(dayIdx);
+
     if (editId) {
-        document.getElementById('ns-cal-modal-title').textContent = 'Edit Block';
         delBtn.classList.remove('hidden');
 
         const block = state.calendarBlocks.find(b => b.id === editId);
         if (!block) return;
 
         document.getElementById('ns-cal-input-title').value = block.title || '';
-        document.getElementById('ns-cal-input-day').value = String(block.day ?? dayIdx);
-        document.getElementById('ns-cal-input-kind').value = block.kind || 'study';
-        document.getElementById('ns-cal-input-code').value = block.code || '';
-
         document.getElementById('ns-cal-input-start').value = minToHHMM(block.startMin ?? 600);
         document.getElementById('ns-cal-input-end').value = minToHHMM(block.endMin ?? 660);
 
+        selectModalTag(block.tag || block.code || null);
     } else {
-        document.getElementById('ns-cal-modal-title').textContent = 'Add Block';
         delBtn.classList.add('hidden');
 
         document.getElementById('ns-cal-input-title').value = '';
-        document.getElementById('ns-cal-input-day').value = String(dayIdx);
-        document.getElementById('ns-cal-input-kind').value = 'study';
-        document.getElementById('ns-cal-input-code').value = '';
 
-        // nice defaults
-        document.getElementById('ns-cal-input-start').value = '10:00';
-        document.getElementById('ns-cal-input-end').value = '11:00';
+        const sm = startMinClicked ?? 600;
+        document.getElementById('ns-cal-input-start').value = minToHHMM(sm);
+        document.getElementById('ns-cal-input-end').value = minToHHMM(sm + 60);
+
+        selectModalTag(null);
     }
 }
 

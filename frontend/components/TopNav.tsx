@@ -37,12 +37,6 @@ export default function TopNav() {
       </div>
 
       <nav>
-        <Link href="/" className={path === "/" ? "active" : ""}>
-          Courses
-        </Link>
-        <Link href="/calendar" className={path === "/calendar" ? "active" : ""}>
-          Calendar
-        </Link>
         <Link href="/notebooks" className={path.startsWith("/notebook") ? "active" : ""}>
           Notebooks
         </Link>
