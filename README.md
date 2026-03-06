@@ -1,6 +1,6 @@
-# dlweek — North Star, An AI Adaptive Learning Platform
+# dlweek — AI Adaptive Learning Platform
 
-North Star is an AI-powered adaptive learning engine for a Blackboard "Study Mode" (Microsoft hackathon). The platform combines personalised content generation (visual, auditory, kinesthetic) with a mastery tracking engine (Bayesian Knowledge Tracing), intelligent scheduling, and weekly analytics.
+AI-powered adaptive learning engine for a Blackboard "Study Mode" (Microsoft hackathon). The platform combines personalised content generation (visual, auditory, kinesthetic) with a mastery tracking engine (Bayesian Knowledge Tracing), intelligent scheduling, and weekly analytics.
 
 ---
 
@@ -8,7 +8,6 @@ North Star is an AI-powered adaptive learning engine for a Blackboard "Study Mod
 
 ### Prerequisites
 - Python 3.13 with venv
-- Node 18+ with npm
 
 ### 1. Environment
 
@@ -16,35 +15,28 @@ North Star is an AI-powered adaptive learning engine for a Blackboard "Study Mod
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # add OPENAI_API_KEY
+cp .env.example .env   # fill in your OPENAI_API_KEY value
 ```
 
-### 2. Start the visual learning backend
+### 2. Start the visual learning backend (port 8000)
 
 ```bash
 source .venv/bin/activate
 uvicorn backend.main:app --reload --port 8000
 ```
 
-> **First run only:** processes PDFs and the article via the OpenAI API (~1–3 min). Watch console for progress. Subsequent starts are instant (seed is idempotent).
+### 3. Start the adaptive learning backend (port 8001)
 
-### 3. Start the adaptive learning backend (root)
+In a new terminal:
 
 ```bash
 source .venv/bin/activate
 uvicorn main:app --reload --port 8001
 ```
 
-### 4. Start the frontend
+### 4. Start the NTULearn clone (frontend)
 
-```bash
-cd frontend
-npm run dev
-```
-
-Open **http://localhost:3000**
-
-### 5. Start the NTULearn clone (frontend)
+In a new terminal:
 
 ```bash
 cd ntulearn_clone

@@ -13,3 +13,5 @@ node_modules/
 .next/
 main_remote.py
 venv
+.DS_Store
+src/.DS_Store

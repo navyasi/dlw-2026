@@ -155,6 +155,7 @@ function init() {
         renderStudySidebar();
 
         playCinematicReveal();
+        fetchAndApplyBackendData();
     } else {
         bindEvents();
         render();
