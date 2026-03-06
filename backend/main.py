@@ -32,6 +32,7 @@ from backend.routers import audio as audio_router
 from backend.routers import quiz as quiz_router
 from backend.routers import recall as recall_router
 from backend.routers import integration as integration_router
+from backend.routers.analytics import router as analytics_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -64,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Study Mode API", version="1.0.0", lifespan=lifespan)
-
+app.include_router(analytics_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080", "http://127.0.0.1:8080"],

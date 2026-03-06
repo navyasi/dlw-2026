@@ -342,3 +342,66 @@ def session_event_to_quiz_responses(
             )
         )
     return responses
+
+
+def load_quiz_results(
+    path: str = "quiz_results.csv",
+) -> List[SessionEvent]:
+    """
+    Load quiz_results.csv and convert each question attempt into a SessionEvent.
+    """
+
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+
+    events: List[SessionEvent] = []
+
+    if not os.path.exists(full_path):
+        return events
+
+    with open(full_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            try:
+                events.append(
+                    SessionEvent(
+                        student_id=row["student_id"].strip(),
+                        concept_id=row.get("concept", "unknown").strip(),
+                        subject="computer_security",   # can be dynamic if stored
+                        correct=row["is_correct"].strip() == "1",
+                        response_time_seconds=60.0,
+                        timestamp=datetime.now(),
+                    )
+                )
+            except Exception:
+                continue
+
+    return events
+
+def quiz_results_to_quiz_responses(
+    events: Optional[List[SessionEvent]] = None,
+    subject: str = "computer_security",
+) -> List[QuizResponse]:
+    """
+    Convert quiz_results.csv attempts into QuizResponse objects for BKT updates.
+    """
+
+    if events is None:
+        events = load_quiz_results()
+
+    responses: List[QuizResponse] = []
+
+    for e in events:
+        responses.append(
+            QuizResponse(
+                student_id=e.student_id,
+                concept_id=e.concept_id,
+                subject=subject,
+                correct=e.correct,
+                response_time_seconds=e.response_time_seconds,
+                timestamp=e.timestamp,
+                error_depth=0.0,
+            )
+        )
+
+    return responses

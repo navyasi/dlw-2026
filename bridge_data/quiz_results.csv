@@ -1,0 +1,21 @@
+student_id,question_id,question_type,concept,question,student_answer,correct_answer,is_correct
+student_01,mcq_1,mcq,Unknown,Which C function is considered high risk due to lack of range checking?,strncpy,strcpy,0
+student_01,mcq_2,mcq,Unknown,What does ASLR stand for?,Address Space Layout Randomization,Address Space Layout Randomization,1
+student_01,mcq_3,mcq,Unknown,Which is a safe alternative to unsafe memory manipulation functions?,strncat,strncat,1
+student_01,mcq_4,mcq,Unknown,What is a primary goal of manual code reviews?,Publisher code,Identify potential vulnerabilities,0
+student_01,mcq_5,mcq,Unknown,What kind of testing aims to ensure new changes do not harm existing functionalities?,Regression Testing,Regression Testing,1
+student_01,short_1,short,Unknown,Explain why strcpy is considered unsafe.,1,"strcpy does not perform bounds checking, which can lead to buffer overflow vulnerabilities.",0
+student_01,short_2,short,Unknown,Describe one benefit of using safe programming languages.,1,Safe programming languages provide automatic bounds checking to prevent buffer overflow vulnerabilities.,0
+student_01,short_3,short,Unknown,What is the purpose of a canary in StackGuard?,1,The canary helps detect buffer overflows by being checked before a function returns.,0
+student_01,short_4,short,Unknown,What is fuzzing in software testing?,1,Fuzzing is an automated technique that tests programs by inputting random or unexpected data to identify vulnerabilities.,0
+student_01,short_5,short,Unknown,Explain the concept of Return-Oriented Programming (ROP).,1,ROP exploits existing code snippets (gadgets) in a program to execute malicious behavior without injecting new code.,0
+student_01,mcq_1,mcq,Unknown,Which C function is considered high risk due to lack of range checking?,strncpy,strcpy,0
+student_01,mcq_2,mcq,Unknown,What does ASLR stand for?,Address Safety Layer Reduction,Address Space Layout Randomization,0
+student_01,mcq_3,mcq,Unknown,Which is a safe alternative to unsafe memory manipulation functions?,strncat,strncat,1
+student_01,mcq_4,mcq,Unknown,What is a primary goal of manual code reviews?,Identify potential vulnerabilities,Identify potential vulnerabilities,1
+student_01,mcq_5,mcq,Unknown,What kind of testing aims to ensure new changes do not harm existing functionalities?,Regression Testing,Regression Testing,1
+student_01,short_1,short,Unknown,Explain why strcpy is considered unsafe.,q,"strcpy does not perform bounds checking, which can lead to buffer overflow vulnerabilities.",0
+student_01,short_2,short,Unknown,Describe one benefit of using safe programming languages.,q,Safe programming languages provide automatic bounds checking to prevent buffer overflow vulnerabilities.,0
+student_01,short_3,short,Unknown,What is the purpose of a canary in StackGuard?,q,The canary helps detect buffer overflows by being checked before a function returns.,0
+student_01,short_4,short,Unknown,What is fuzzing in software testing?,q,Fuzzing is an automated technique that tests programs by inputting random or unexpected data to identify vulnerabilities.,0
+student_01,short_5,short,Unknown,Explain the concept of Return-Oriented Programming (ROP).,q,ROP exploits existing code snippets (gadgets) in a program to execute malicious behavior without injecting new code.,0

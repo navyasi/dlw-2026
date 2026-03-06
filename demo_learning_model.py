@@ -17,6 +17,8 @@ from bridge import (
     load_exam_weights,
     load_session_events,
     session_event_to_quiz_responses,
+    load_quiz_results,
+    quiz_results_to_quiz_responses,
 )
 
 # ------------------------------------------------------------------
@@ -42,10 +44,23 @@ SUBJECT = "computer_security"
 # ------------------------------------------------------------------
 # 3. Load quiz responses from session_events.csv
 # ------------------------------------------------------------------
-all_events = load_session_events()
-student_events = [e for e in all_events if e.student_id == STUDENT]
-responses = session_event_to_quiz_responses(student_events, subject=SUBJECT)
+# all_events = load_session_events()
+# student_events = [e for e in all_events if e.student_id == STUDENT]
+# responses = session_event_to_quiz_responses(student_events, subject=SUBJECT)
+# Load scheduler session events
+session_events = load_session_events()
+session_events = [e for e in session_events if e.student_id == STUDENT]
 
+# Load quiz results (per-question attempts)
+quiz_events = load_quiz_results()
+quiz_events = [e for e in quiz_events if e.student_id == STUDENT]
+
+# Convert both sources to QuizResponses
+responses_session = session_event_to_quiz_responses(session_events, subject=SUBJECT)
+responses_quiz = quiz_results_to_quiz_responses(quiz_events, subject=SUBJECT)
+
+# Combine them
+responses = responses_session + responses_quiz
 engine.update_from_quiz(responses)
 print(f"Processed {len(responses)} quiz responses (from session_events.csv).\n")
 

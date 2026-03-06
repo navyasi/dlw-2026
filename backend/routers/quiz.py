@@ -12,9 +12,10 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
-SAMPLE_DIR = Path(__file__).parent.parent.parent / "sample_data"
+SAMPLE_DIR = Path(__file__).parent.parent.parent / "bridge_data"
 
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent / "bridge_data"
+QUIZ_RESULTS_CSV = BASE_DIR / "quiz_results.csv"
 def _get_openai_client():
     from openai import OpenAI
     api_key = os.getenv("OPENAI_API_KEY")
@@ -104,24 +105,67 @@ async def generate_quiz(notebook_id: int):
     return plan
 
 
+# @router.post("/grade")
+# async def grade_quiz(payload: GradeRequest = Body(...)):
+#     """
+#     Grade a completed quiz submission and return scores.
+#     Also pushes topic mastery into the MasteryEngine so study schedules update.
+#     """
+#     from kinesthetics import compute_kms
+#     from engine_state import get_shared_engine
+#     from bridge import grade_to_quiz_responses
+
+#     result = compute_kms(
+#         payload.plan,
+#         payload.completed_activity_ids,
+#         payload.quiz_answers,
+#     )
+
+#     # Push mastery update into the shared engine so the scheduler stays in sync
+#     topic_mastery = result.get("topic_mastery", {})
+#     if topic_mastery:
+#         try:
+#             engine, _ = get_shared_engine()
+#             responses = grade_to_quiz_responses(
+#                 topic_mastery, payload.student_id, payload.subject
+#             )
+#             engine.update_from_quiz(responses)
+#         except Exception:
+#             pass  # grading result still returned; engine update is best-effort
+
+#     return result
+
 @router.post("/grade")
 async def grade_quiz(payload: GradeRequest = Body(...)):
     """
     Grade a completed quiz submission and return scores.
     Also pushes topic mastery into the MasteryEngine so study schedules update.
+    Also saves detailed quiz results to CSV.
     """
-    from kinesthetics import compute_kms
+    from kinesthetics import compute_kms, compute_topic_mastery, save_quiz_results_to_csv
     from engine_state import get_shared_engine
     from bridge import grade_to_quiz_responses
 
+    # 1. Compute scores
     result = compute_kms(
         payload.plan,
         payload.completed_activity_ids,
         payload.quiz_answers,
     )
 
-    # Push mastery update into the shared engine so the scheduler stays in sync
-    topic_mastery = result.get("topic_mastery", {})
+    # 2. Compute concept-wise mastery
+    topic_mastery = compute_topic_mastery(payload.plan, payload.quiz_answers)
+    result["topic_mastery"] = topic_mastery
+
+    # 3. Save detailed results to CSV
+    save_quiz_results_to_csv(
+    plan=payload.plan,
+    quiz_answers=payload.quiz_answers,
+    csv_file=str(QUIZ_RESULTS_CSV),
+    student_id=payload.student_id,
+)
+
+    # 4. Push mastery update into shared engine
     if topic_mastery:
         try:
             engine, _ = get_shared_engine()
@@ -133,7 +177,6 @@ async def grade_quiz(payload: GradeRequest = Body(...)):
             pass  # grading result still returned; engine update is best-effort
 
     return result
-
 
 class SessionEventPayload(BaseModel):
     student_id: str
