@@ -297,7 +297,7 @@ export default function CoursePage({ params }: Props) {
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
                     {/* Content mode sub-header tab bar — Visual / Audio / Quiz / Lectures / Tutorials */}
-                    {activeSection && activeSection.source_type !== "tutorial" && (
+                    {activeSection && (
                         <div style={{
                             display: "flex", gap: 0, borderBottom: "1px solid var(--border)",
                             background: "#FAFAFC", flexShrink: 0,
@@ -368,10 +368,10 @@ export default function CoursePage({ params }: Props) {
                                 />
                             </div>
                         </div>
-                    ) : (contentMode === "lectures" || contentMode === "tutorials") && activeSection ? (
-                        /* Section list panel for lectures/tutorials tab */
+                    ) : contentMode === "lectures" && activeSection ? (
+                        /* Section list panel for lectures tab */
                         <div style={{ flex: 1, overflowY: "auto" }}>
-                            {(contentMode === "lectures" ? course.lectures : course.tutorials).map((s) => {
+                            {course.lectures.map((s) => {
                                 const isActive = activeSection?.id === s.id;
                                 const typeLabel = SOURCE_LABEL[s.source_type] ?? s.source_type;
                                 return (
@@ -388,10 +388,30 @@ export default function CoursePage({ params }: Props) {
                                     >
                                         <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 2 }}>{typeLabel}</div>
                                         <div style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? "var(--accent)" : "var(--text)", lineHeight: 1.4 }}>{s.title}</div>
-                                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.page_count} {s.source_type === "tutorial" ? "question(s)" : "slides"}</div>
+                                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.page_count} slides</div>
                                     </button>
                                 );
                             })}
+                        </div>
+                    ) : contentMode === "tutorials" && activeSection ? (
+                        /* Tutorials: show tutorial content directly */
+                        <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 60px" }}>
+                            {sectionLoading ? (
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                                    <div className="spinner" />
+                                </div>
+                            ) : tutorialQuestions ? (
+                                <TutorialFlow
+                                    questions={tutorialQuestions}
+                                    notebookId={activeSection.id}
+                                    onFlag={async (nbId, stepNum) => {
+                                        const res = await api.flagStep(nbId, stepNum);
+                                        return res.hint;
+                                    }}
+                                />
+                            ) : (
+                                <div className="empty-state"><p>No tutorial content available.</p></div>
+                            )}
                         </div>
                     ) : contentMode === "kinesthetic" && activeSection && activeSection.source_type !== "tutorial" ? (
                         <div style={{ flex: 1, overflowY: "auto" }}>
