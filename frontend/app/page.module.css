@@ -1,13 +1,13 @@
 .page {
-  --background: #fafafa;
-  --foreground: #fff;
+  --background: #F8F7F4;
+  --foreground: #FFFFFF;
 
-  --text-primary: #000;
-  --text-secondary: #666;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
 
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
+  --button-primary-hover: #1F2937;
+  --button-secondary-hover: #F1F5F9;
+  --button-secondary-border: #E5E7EB;
 
   display: flex;
   min-height: 100vh;

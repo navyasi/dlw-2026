@@ -174,9 +174,9 @@ export default function CoursePage({ params }: Props) {
     const allSections = activeTab === "lectures" ? course.lectures : course.tutorials;
 
     return (
-        <div style={{ height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
+        <div style={{ height: "calc(100vh - 56px)", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
             {/* Top Toolbar */}
-            <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", background: "white", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", background: "rgba(248, 247, 244, 0.92)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                 <Link href="http://localhost:8080/study.html" style={{ color: "var(--text-muted)", fontSize: 12 }}>← Courses</Link>
                 <div style={{ width: 1, height: 16, background: "var(--border)", margin: "0 2px" }} />
                 <button
@@ -192,15 +192,44 @@ export default function CoursePage({ params }: Props) {
 
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
                     {activeSection?.source_type !== "tutorial" && (
-                        <>
-                            <button className={`btn ${mainView === "notes" ? "btn-primary" : "btn-ghost"}`} style={{ fontSize: 12, padding: "5px 12px" }} onClick={() => setMainView("notes")}>Notes</button>
-                            <button className={`btn ${mainView === "concept-map" ? "btn-primary" : "btn-ghost"}`} style={{ fontSize: 12, padding: "5px 12px" }} onClick={() => setMainView("concept-map")}>Concept Map</button>
-                        </>
+                        <div style={{ background: "white", borderRadius: "99px", padding: 4, display: "flex", gap: 4, border: "1px solid var(--border)", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+                            <button
+                                className="btn"
+                                style={{
+                                    fontSize: 12, padding: "5px 14px", borderRadius: "99px", border: "none",
+                                    background: mainView === "notes" ? "var(--text)" : "transparent",
+                                    color: mainView === "notes" ? "white" : "var(--text-muted)",
+                                    fontWeight: mainView === "notes" ? 600 : 500,
+                                    transition: "all 0.2s"
+                                }}
+                                onClick={() => setMainView("notes")}
+                            >Notes</button>
+                            <button
+                                className="btn"
+                                style={{
+                                    fontSize: 12, padding: "5px 14px", borderRadius: "99px", border: "none",
+                                    background: mainView === "concept-map" ? "var(--text)" : "transparent",
+                                    color: mainView === "concept-map" ? "white" : "var(--text-muted)",
+                                    fontWeight: mainView === "concept-map" ? 600 : 500,
+                                    transition: "all 0.2s"
+                                }}
+                                onClick={() => setMainView("concept-map")}
+                            >Concept Map</button>
+                        </div>
                     )}
                     <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 4px" }} />
                     <button
-                        className={`btn ${chatOpen ? "btn-primary" : "btn-secondary"}`}
-                        style={{ fontSize: 12, padding: "5px 12px" }}
+                        className="btn"
+                        style={{
+                            fontSize: 12, padding: "5px 14px", borderRadius: "99px",
+                            background: chatOpen ? "var(--text)" : "white",
+                            color: chatOpen ? "white" : "var(--text)",
+                            border: "1px solid",
+                            borderColor: chatOpen ? "var(--text)" : "var(--border)",
+                            fontWeight: 600,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            transition: "all 0.2s"
+                        }}
                         onClick={() => setChatOpen((v) => !v)}
                     >
                         Ask AI
@@ -215,18 +244,19 @@ export default function CoursePage({ params }: Props) {
                 {sidebarOpen && (
                     <div style={{
                         width: 210, flexShrink: 0,
-                        borderRight: "1px solid var(--border)", background: "#F5F5FB",
+                        borderRight: "1px solid var(--border)", background: "#FFFFFF",
                         display: "flex", flexDirection: "column", overflow: "hidden",
                     }}>
                         {/* Start Session button */}
                         <div style={{ padding: "16px 14px 12px" }}>
                             <button
                                 style={{
-                                    width: "100%", padding: "10px 0", borderRadius: 10,
-                                    border: "1.5px solid var(--accent)", background: "white",
-                                    color: "var(--accent)", fontWeight: 700, fontSize: 14,
+                                    width: "100%", padding: "10px 0", borderRadius: "12px",
+                                    border: "1px solid var(--text)", background: "var(--text)",
+                                    color: "white", fontWeight: 700, fontSize: 13,
                                     cursor: "pointer", display: "flex", alignItems: "center",
                                     justifyContent: "center", gap: 8,
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
                                 }}
                             >
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -244,7 +274,7 @@ export default function CoursePage({ params }: Props) {
                         {/* Timeline */}
                         <div style={{ flex: 1, overflowY: "auto", padding: "0 14px 16px", position: "relative", marginLeft: 6 }}>
                             {/* vertical line */}
-                            <div style={{ position: "absolute", top: 6, bottom: 6, left: 18, width: 2, background: "#eef2f6", zIndex: 0 }} />
+                            <div style={{ position: "absolute", top: 6, bottom: 6, left: 18, width: 2, background: "#E2E8F0", zIndex: 0 }} />
                             {[
                                 { time: "09:00 - 10:00", title: "SC3010: Software Security", active: true },
                                 { time: "10:00 - 11:00", title: "SC2002: Polymorphism", active: false },
@@ -253,25 +283,32 @@ export default function CoursePage({ params }: Props) {
                                 <div key={i} style={{ display: "flex", gap: 12, position: "relative", zIndex: 1, marginBottom: 20 }}>
                                     <div style={{
                                         width: 10, height: 10, borderRadius: "50%", flexShrink: 0, marginTop: 4,
-                                        backgroundColor: item.active ? "#5b5fc7" : "#eef2f6",
-                                        border: item.active ? "3px solid #e1e1ff" : "none",
+                                        backgroundColor: "#94A3B8",
+                                        border: "2px solid #FFFFFF",
                                     }} />
                                     <div>
                                         <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500, marginBottom: 2 }}>{item.time}</div>
-                                        <div style={{ fontSize: 13, fontWeight: item.active ? 700 : 500, color: item.active ? "#5b5fc7" : "var(--text)" }}>{item.title}</div>
+                                        {item.title.split(': ').length > 1 ? (
+                                            <>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.title.split(': ')[0]}</div>
+                                                <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-muted)", marginTop: 2 }}>{item.title.split(': ')[1]}</div>
+                                            </>
+                                        ) : (
+                                            <div style={{ fontSize: 13, fontWeight: item.active ? 700 : 500, color: "var(--text)" }}>{item.title}</div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
                         </div>
 
                         {/* Progress card at bottom */}
-                        <div style={{ margin: "0 12px 12px", background: "white", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                        <div style={{ margin: "0 12px 12px", background: "#F8FAFC", borderRadius: "12px", padding: "16px", border: "1px solid var(--border)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>
                                 <span>Today's Progress</span>
                                 <span>42%</span>
                             </div>
-                            <div style={{ height: 6, background: "#eef2f6", borderRadius: 99, overflow: "hidden" }}>
-                                <div style={{ width: "42%", height: "100%", background: "var(--accent)", borderRadius: 99 }} />
+                            <div style={{ height: 8, background: "#E2E8F0", borderRadius: 99, overflow: "hidden" }}>
+                                <div style={{ width: "42%", height: "100%", background: "#334155", borderRadius: 99 }} />
                             </div>
                             <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>45 min left</div>
                         </div>
@@ -314,12 +351,13 @@ export default function CoursePage({ params }: Props) {
                                         setContentMode(mode);
                                     }}
                                     style={{
-                                        padding: "8px 20px", fontSize: 12, fontWeight: 600,
+                                        padding: "10px 20px", fontSize: 13, fontWeight: contentMode === mode ? 700 : 500,
                                         textTransform: "capitalize", cursor: "pointer",
-                                        background: contentMode === mode ? "white" : "transparent",
-                                        color: contentMode === mode ? "var(--accent)" : "var(--text-muted)",
+                                        background: "transparent",
+                                        color: contentMode === mode ? "var(--text)" : "var(--text-muted)",
                                         border: "none", borderBottomWidth: 2, borderBottomStyle: "solid",
-                                        borderBottomColor: contentMode === mode ? "var(--accent)" : "transparent",
+                                        borderBottomColor: contentMode === mode ? "var(--text)" : "transparent",
+                                        transition: "color 0.2s, border-color 0.2s"
                                     }}
                                 >
                                     {mode === "visual" ? "Visual" : mode === "audio" ? "Audio" : mode === "kinesthetic" ? "Kinesthetic" : mode === "quiz" ? "Quiz" : mode === "lectures" ? `Lectures (${course.lecture_count})` : `Tutorials (${course.tutorial_count})`}
@@ -334,9 +372,13 @@ export default function CoursePage({ params }: Props) {
                             {/* PDF pane (same as visual) */}
                             {activeSection.source_type === "slides" && notebook?.source_ref && (
                                 <>
-                                    <div style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                        <div style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "white", flexShrink: 0 }}>
-                                            Source
+                                    <div style={{
+                                        width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden",
+                                        margin: "14px 0 14px 14px", background: "white", borderRadius: "12px", border: "1px solid var(--border)",
+                                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                    }}>
+                                        <div style={{ padding: "10px 16px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text)", borderBottom: "1px solid var(--border)", background: "#F8FAFC", flexShrink: 0 }}>
+                                            Source Document
                                         </div>
                                         <div style={{ flex: 1, overflow: "hidden", background: "#F1F5F9" }}>
                                             <iframe
@@ -346,7 +388,7 @@ export default function CoursePage({ params }: Props) {
                                             />
                                         </div>
                                     </div>
-                                    <div style={{ width: 5, background: "var(--border)", flexShrink: 0 }} />
+                                    <div style={{ width: 14, flexShrink: 0 }} />
                                 </>
                             )}
                             <div style={{ flex: 1, overflowY: "auto" }}>
@@ -462,9 +504,13 @@ export default function CoursePage({ params }: Props) {
                             /* Slides: split pane with draggable divider */
                             <div ref={splitRef} style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                                 {/* PDF pane */}
-                                <div ref={leftPaneRef} style={{ width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                                    <div style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--border)", background: "white", flexShrink: 0 }}>
-                                        Source
+                                <div ref={leftPaneRef} style={{
+                                    width: "36%", flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden",
+                                    margin: "14px 0 14px 14px", background: "white", borderRadius: "12px", border: "1px solid var(--border)",
+                                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                }}>
+                                    <div style={{ padding: "10px 16px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text)", borderBottom: "1px solid var(--border)", background: "#F8FAFC", flexShrink: 0 }}>
+                                        Source Document
                                     </div>
                                     <div style={{ flex: 1, overflow: "hidden", background: "#F1F5F9" }}>
                                         {notebook.source_ref ? (
@@ -479,16 +525,16 @@ export default function CoursePage({ params }: Props) {
                                     </div>
                                 </div>
 
-                                {/* Drag handle */}
+                                {/* Drag handle space */}
                                 <div
                                     onMouseDown={startDrag}
                                     style={{
-                                        width: 5, cursor: "col-resize", flexShrink: 0,
-                                        background: "var(--border)", transition: "background 0.15s",
+                                        width: 14, cursor: "col-resize", flexShrink: 0,
+                                        display: "flex", alignItems: "center", justifyContent: "center"
                                     }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                                    onMouseLeave={(e) => { if (!isDragging.current) e.currentTarget.style.background = "var(--border)"; }}
-                                />
+                                >
+                                    <div style={{ width: 4, height: 24, borderRadius: 2, background: "var(--border)" }} />
+                                </div>
 
                                 {/* Notes pane */}
                                 <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>

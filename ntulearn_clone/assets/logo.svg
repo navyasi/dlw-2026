@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 50" width="250" height="50">
+  <g fill="#0F172A">
+    <!-- Star Path -->
+    <path d="M25 5 L31 18 L46 18 L34 27 L38 42 L25 33 L12 42 L16 27 L4 18 L19 18 Z" />
+    
+    <!-- Inner cut out shape to look like 'A' -->
+    <path d="M25 10 L28 20 L21 21 Z" fill="#FFFFFF"/>
+    <path d="M21 25 L30 25 L28 32 L22 32 Z" fill="#FFFFFF"/>
+
+    <!-- Text NORTHSTAR -->
+    <text x="55" y="32" font-family="-apple-system, system-ui, sans-serif" font-weight="800" font-size="22" letter-spacing="3">NORTHSTAR</text>
+  </g>
+</svg>

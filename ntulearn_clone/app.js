@@ -111,9 +111,10 @@ const state = {
     quizScore: 0,
     tags: [
         { name: 'SC2207', color: '#b48a71', badgeColor: '#b48a71' },
-        { name: 'SC3010', color: '#5b89c6', badgeColor: '#5b89c6' },
-        { name: 'SC2006', color: '#ec4899', badgeColor: '#ec4899' },
-        { name: 'SC2002', color: '#22c55e', badgeColor: '#22c55e' },
+        { name: 'SC3010', color: '#F97316', badgeColor: '#F97316' }, // Security
+        { name: 'SC2006', color: '#F97316', badgeColor: '#F97316' }, // Engineering
+        { name: 'SC2002', color: '#8B5CF6', badgeColor: '#8B5CF6' }, // Programming
+        { name: 'MH1810', color: '#8B5CF6', badgeColor: '#8B5CF6' }, // Math
         { name: 'HE3010', color: '#a17bc9', badgeColor: '#a17bc9' },
         { name: 'HW0288', color: '#679e78', badgeColor: '#679e78' },
         { name: 'SC2079', color: '#888888', badgeColor: '#888888' }
@@ -442,13 +443,18 @@ function renderStudySidebar() {
     // 2. Timeline
     const timelineEl = document.getElementById('ns-study-timeline');
     if (timelineEl) {
-        timelineEl.innerHTML = state.todayPlan.map(plan => `
+        timelineEl.innerHTML = state.todayPlan.map(plan => {
+            const parts = plan.subjectTitle.split(': ');
+            const titleHtml = parts.length > 1
+                ? `<div class="ns-timeline-code">${parts[0]}</div><div class="ns-timeline-name">${parts[1]}</div>`
+                : `<div class="ns-timeline-code">${plan.subjectTitle}</div>`;
+            return `
             <li class="ns-timeline-item ${plan.status === 'active' ? 'active' : ''} ${plan.status === 'done' ? 'done' : ''}" onclick="selectPlanSubject('${plan.subjectId}', '${plan.id}')">
                 <div class="ns-timeline-dot"></div>
                 <div class="ns-timeline-time">${plan.timeStart} - ${plan.timeEnd}</div>
-                <div class="ns-timeline-title">${plan.subjectTitle}</div>
+                <div class="ns-timeline-title">${titleHtml}</div>
             </li>
-        `).join('');
+        `}).join('');
     }
 }
 
