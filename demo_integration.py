@@ -14,16 +14,22 @@ Run:
     python demo_integration.py
 """
 
-import json
 import os
 import sys
 from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from learning_model import KnowledgeGraph, MasteryEngine, QuizResponse
+from learning_model import MasteryEngine
 from scheduler import AvailabilityWindow, TimetableEngine
-from bridge import grade_to_quiz_responses, load_curriculum_meta, mastery_to_concepts_payload
+from bridge import (
+    build_knowledge_graph,
+    grade_to_quiz_responses,
+    load_curriculum_meta,
+    load_exam_weights,
+    load_topic_mastery,
+    mastery_to_concepts_payload,
+)
 from insights import generate_weekly_report
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -33,12 +39,7 @@ print("=" * 65)
 print("INTEGRATION DEMO — Learning Model + Analytics + Scheduler")
 print("=" * 65)
 
-with open("data/sample_curriculum.json") as f:
-    curricula = json.load(f)
-
-kg = KnowledgeGraph()
-for curriculum in curricula:
-    kg.load_curriculum(curriculum)
+kg = build_knowledge_graph()
 
 engine = MasteryEngine(
     knowledge_graph=kg,
@@ -46,40 +47,22 @@ engine = MasteryEngine(
     openai_model="gpt-4o-mini",
 )
 
-STUDENT = "student_42"
-SUBJECT = "deep_learning"
+STUDENT = "stu_001"
+SUBJECT = "computer_security"
 
-exam_weights = {
-    "linear_algebra":   0.15,
-    "calculus":         0.10,
-    "chain_rule":       0.20,
-    "gradient_descent": 0.15,
-    "backprop":         0.25,
-    "cnn":              0.10,
-    "transformers":     0.05,
-}
-
+exam_weights    = load_exam_weights()
 curriculum_meta = load_curriculum_meta()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. Simulate Sia's /grade-kinesthetic output
-#    In production this comes from POST /grade-kinesthetic → topic_mastery dict
+# 1. Load Sia's topic mastery from CSV (replaces /grade-kinesthetic output)
 # ─────────────────────────────────────────────────────────────────────────────
-print("\n── Step 1: Kinesthetic quiz results (simulated from /grade-kinesthetic) ──")
+print("\n── Step 1: Topic mastery scores (loaded from topic_mastery.csv) ──")
 
-topic_mastery_from_sia = {
-    "linear_algebra":   0.82,   # strong
-    "calculus":         0.38,   # weak
-    "chain_rule":       0.29,   # very weak
-    "gradient_descent": 0.55,   # borderline
-    "backprop":         0.21,   # very weak
-    "cnn":              0.40,   # weak
-    "transformers":     0.15,   # very weak — never studied
-}
+topic_mastery_from_sia = load_topic_mastery(STUDENT, SUBJECT)
 
 for concept, score in topic_mastery_from_sia.items():
     bar = "█" * int(score * 20)
-    print(f"  {concept:<20} {score:.0%}  {bar}")
+    print(f"  {concept:<35} {score:.0%}  {bar}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Bridge: topic_mastery → QuizResponse → MasteryEngine
@@ -102,7 +85,7 @@ print()
 for cid, cm in sorted(mastery_state.concepts.items(), key=lambda x: x[1].p_mastery):
     bar = "█" * int(cm.p_mastery * 20)
     flag = "  ← WEAK" if cm.p_mastery < 0.5 else ""
-    print(f"  {cid:<20} p_mastery={cm.p_mastery:.3f}  {bar}{flag}")
+    print(f"  {cid:<35} p_mastery={cm.p_mastery:.3f}  {bar}{flag}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Bridge: MasteryState → Sia's Concept payload → Weekly report
@@ -123,7 +106,7 @@ print(f"  With recommended plan:    {score_model['simulation_recommended_plan'][
 print("\n  Top priority concepts:")
 for c in weekly_report["priority_ranking"]["top_concepts"][:5]:
     print(
-        f"    {c['concept_name']:<22} "
+        f"    {c['concept_name']:<35} "
         f"mastery={c['mastery']:.0%}  "
         f"priority={c['priority_score']:.4f}  "
         f"forgetting_risk={c['forgetting_risk']:.0%}"
@@ -182,14 +165,14 @@ for sched in plan.days[:7]:
 today_schedule = timetable.get_todays_schedule(STUDENT, plan)
 print(f"\n── Step 6: Today's Pomodoro schedule ({today_schedule.date}) ──")
 
-ICONS = {"work": "🔵", "review": "🟡", "short_break": "🟢", "long_break": "🔴"}
+ICONS  = {"work": "🔵", "review": "🟡", "short_break": "🟢", "long_break": "🔴"}
 LABELS = {"work": "WORK", "review": "REVIEW", "short_break": "SHORT BREAK", "long_break": "LONG BREAK"}
 
 clock = datetime.combine(today_schedule.date, datetime.min.time()).replace(hour=9)
 for block in today_schedule.blocks:
     start = clock.strftime("%H:%M")
-    end = (clock + timedelta(minutes=block.duration_minutes)).strftime("%H:%M")
-    icon = ICONS.get(block.block_type, "⬜")
+    end   = (clock + timedelta(minutes=block.duration_minutes)).strftime("%H:%M")
+    icon  = ICONS.get(block.block_type, "⬜")
     label = LABELS.get(block.block_type, block.block_type.upper())
     if block.block_type in ("work", "review"):
         concepts = ", ".join(block.concept_ids) if block.concept_ids else "—"
@@ -202,12 +185,12 @@ for block in today_schedule.blocks:
 # 7. Simulate next quiz cycle (loop closes)
 # ─────────────────────────────────────────────────────────────────────────────
 print("\n── Step 7: After one study session — next quiz cycle ──")
-print("  (simulating improved scores after studying backprop & chain_rule)")
+print("  (simulating improved scores after studying buffer_overflow & reference_monitor)")
 
 next_quiz_results = {
-    "backprop":   0.55,   # improved from 0.21 → 0.55
-    "chain_rule": 0.52,   # improved from 0.29 → 0.52
-    "calculus":   0.48,   # slight improvement
+    "buffer_overflow":      0.62,   # improved from 0.41 → 0.62
+    "reference_monitor":    0.55,   # improved from 0.35 → 0.55
+    "integer_overflow":     0.51,   # slight improvement
 }
 
 new_responses = grade_to_quiz_responses(next_quiz_results, STUDENT, SUBJECT)
@@ -215,9 +198,9 @@ engine.update_from_quiz(new_responses)
 
 updated_state = engine.get_mastery_state(STUDENT, SUBJECT)
 print(f"  Updated overall mastery: {updated_state.overall_mastery():.0%}  (was {mastery_state.overall_mastery():.0%})")
-for cid in ["backprop", "chain_rule", "calculus"]:
+for cid in ["buffer_overflow", "reference_monitor", "integer_overflow"]:
     if cid in updated_state.concepts:
-        print(f"  {cid:<20} new p_mastery = {updated_state.concepts[cid].p_mastery:.3f}")
+        print(f"  {cid:<35} new p_mastery = {updated_state.concepts[cid].p_mastery:.3f}")
 
 print("\n" + "=" * 65)
 print("Integration demo complete.")
@@ -228,12 +211,8 @@ print("Example curl:")
 print("""  curl -s -X POST http://localhost:8000/integrated-weekly \\
     -H 'Content-Type: application/json' \\
     -d '{
-      "student_id": "student_42",
-      "subject": "deep_learning",
-      "exam_weights": {"backprop":0.25,"chain_rule":0.20,"gradient_descent":0.15,
-                       "linear_algebra":0.15,"calculus":0.10,"cnn":0.10,"transformers":0.05},
+      "student_id": "stu_001",
+      "subject": "computer_security",
       "days_until_exam": 14,
-      "current_weekly_minutes": 240,
-      "topic_mastery": {"backprop":0.21,"chain_rule":0.29,"calculus":0.38,
-                        "gradient_descent":0.55,"linear_algebra":0.82,"cnn":0.40,"transformers":0.15}
+      "current_weekly_minutes": 240
     }' | python -m json.tool""")

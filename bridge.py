@@ -17,9 +17,10 @@ The full weekly loop:
 
 from __future__ import annotations
 
-import json
+import csv
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -29,32 +30,168 @@ from learning_model.models import MasteryState, QuizResponse
 
 
 # ---------------------------------------------------------------------------
+# CSV-backed SessionEvent model
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SessionEvent:
+    student_id: str
+    concept_id: str
+    subject: str
+    correct: bool
+    response_time_seconds: float
+    timestamp: datetime
+
+
+# ---------------------------------------------------------------------------
 # Curriculum metadata loader
 # ---------------------------------------------------------------------------
 
 def load_curriculum_meta(
-    path: str = "data/sample_curriculum.json",
+    path: str = "bridge_data/curriculum_meta.csv",
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Load curriculum JSON and return a flat dict keyed by concept_id:
+    Load curriculum metadata from CSV and return a flat dict keyed by concept_id:
         { concept_id: { name, prerequisites: [str], difficulty, subject } }
+
+    Expected CSV columns:
+        concept_id,name,subject,difficulty,prerequisites
     """
     full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
-    with open(full_path) as f:
-        data = json.load(f)
 
     meta: Dict[str, Dict[str, Any]] = {}
-    for subject_block in data:
-        subject = subject_block["subject"]
-        for c in subject_block.get("concepts", []):
-            prereq_ids = [p["id"] for p in c.get("prerequisites", [])]
-            meta[c["id"]] = {
-                "name": c.get("label", c["id"].replace("_", " ").title()),
+    with open(full_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            prereqs_raw = (row.get("prerequisites") or "").strip()
+            prereq_ids = [p.strip() for p in prereqs_raw.split("|") if p.strip()]
+
+            concept_id = row["concept_id"].strip()
+            meta[concept_id] = {
+                "name": (row.get("name") or concept_id.replace("_", " ").title()).strip(),
                 "prerequisites": prereq_ids,
-                "difficulty": c.get("difficulty", "medium"),
-                "subject": subject,
+                "difficulty": (row.get("difficulty") or "medium").strip(),
+                "subject": (row.get("subject") or "").strip(),
             }
+
     return meta
+
+
+def load_exam_weights(
+    path: str = "bridge_data/exam_weights.csv",
+) -> Dict[str, float]:
+    """
+    Load exam weights from CSV and return:
+        { concept_id: exam_weight }
+
+    Expected CSV columns:
+        concept_id,exam_weight
+    """
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+
+    weights: Dict[str, float] = {}
+    with open(full_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            weights[row["concept_id"].strip()] = float(row["exam_weight"])
+
+    return weights
+
+
+def load_topic_mastery(
+    student_id: str,
+    subject: Optional[str] = None,
+    path: str = "bridge_data/topic_mastery.csv",
+) -> Dict[str, float]:
+    """
+    Load one student's topic mastery from CSV and return:
+        { concept_id: mastery_score }
+
+    Expected CSV columns:
+        student_id,subject,concept_id,mastery_score
+    """
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+
+    mastery: Dict[str, float] = {}
+    with open(full_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["student_id"].strip() != student_id:
+                continue
+            if subject is not None and row["subject"].strip() != subject:
+                continue
+
+            mastery[row["concept_id"].strip()] = float(row["mastery_score"])
+
+    return mastery
+
+
+def load_session_events(
+    path: str = "bridge_data/session_events.csv",
+) -> List[SessionEvent]:
+    """
+    Load session events from CSV and return a list of SessionEvent objects.
+
+    Expected CSV columns:
+        student_id,concept_id,subject,correct,response_time_seconds,timestamp
+    """
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+
+    events: List[SessionEvent] = []
+    with open(full_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            events.append(
+                SessionEvent(
+                    student_id=row["student_id"].strip(),
+                    concept_id=row["concept_id"].strip(),
+                    subject=row["subject"].strip(),
+                    correct=row["correct"].strip().lower() == "true",
+                    response_time_seconds=float(row["response_time_seconds"]),
+                    timestamp=datetime.fromisoformat(row["timestamp"]),
+                )
+            )
+
+    return events
+
+
+# ---------------------------------------------------------------------------
+# KnowledgeGraph builder from CSV
+# ---------------------------------------------------------------------------
+
+def build_knowledge_graph(
+    path: str = "bridge_data/curriculum_meta.csv",
+) -> Any:
+    """
+    Build and return a KnowledgeGraph loaded from curriculum_meta.csv.
+
+    Groups concepts by subject and calls kg.load_curriculum() for each.
+    """
+    from learning_model import KnowledgeGraph
+
+    full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+
+    subjects: Dict[str, list] = {}
+    with open(full_path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            subj = row["subject"].strip()
+            if subj not in subjects:
+                subjects[subj] = []
+            prereqs_raw = (row.get("prerequisites") or "").strip()
+            prereqs = [
+                {"id": p.strip(), "weight": 0.7}
+                for p in prereqs_raw.split("|") if p.strip()
+            ]
+            subjects[subj].append({
+                "id": row["concept_id"].strip(),
+                "label": row["name"].strip(),
+                "prerequisites": prereqs,
+            })
+
+    kg = KnowledgeGraph()
+    for subject, concepts in subjects.items():
+        kg.load_curriculum({"subject": subject, "concepts": concepts})
+    return kg
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +200,7 @@ def load_curriculum_meta(
 
 def mastery_to_concepts_payload(
     mastery_state: MasteryState,
-    exam_weights: Dict[str, float],
+    exam_weights: Optional[Dict[str, float]] = None,
     curriculum_meta: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -72,14 +209,17 @@ def mastery_to_concepts_payload(
 
     Args:
         mastery_state:   from engine.get_mastery_state(student_id, subject)
-        exam_weights:    {concept_id: float 0..1}
+        exam_weights:    {concept_id: float 0..1}; if None, loaded from CSV
         curriculum_meta: from load_curriculum_meta() — provides human names,
-                         prerequisite lists, and difficulty levels
+                         prerequisite lists, and difficulty levels; if None,
+                         loaded from CSV
 
     Returns:
         List of dicts matching insights.Concept schema.
     """
-    meta = curriculum_meta or {}
+    exam_weights = exam_weights or load_exam_weights()
+    meta = curriculum_meta or load_curriculum_meta()
+
     concepts: List[Dict[str, Any]] = []
 
     for concept_id, cm in mastery_state.concepts.items():
@@ -127,14 +267,16 @@ def mastery_to_concepts_payload(
 # ---------------------------------------------------------------------------
 
 def grade_to_quiz_responses(
-    topic_mastery: Dict[str, float],
-    student_id: str,
-    subject: str,
+    topic_mastery: Optional[Dict[str, float]] = None,
+    student_id: str = "",
+    subject: str = "",
 ) -> List[QuizResponse]:
     """
     Convert kinesthetic/quiz topic mastery scores (the output of
     compute_topic_mastery() from kinesthetics.py) back into QuizResponse
     objects that engine.update_from_quiz() can process.
+
+    If topic_mastery is None, it will be loaded from CSV using student_id/subject.
 
     A mastery_score in [0, 1] is treated as performance probability:
       correct    = True  if mastery_score >= 0.5
@@ -142,6 +284,11 @@ def grade_to_quiz_responses(
 
     The BKT update inside engine will shift p_mastery up or down accordingly.
     """
+    if topic_mastery is None:
+        if not student_id:
+            raise ValueError("student_id is required when topic_mastery is None")
+        topic_mastery = load_topic_mastery(student_id=student_id, subject=subject or None)
+
     responses: List[QuizResponse] = []
     now = datetime.now()
 
@@ -167,15 +314,20 @@ def grade_to_quiz_responses(
 # ---------------------------------------------------------------------------
 
 def session_event_to_quiz_responses(
-    events: list,
+    events: Optional[List[SessionEvent]] = None,
     subject: Optional[str] = None,
 ) -> List[QuizResponse]:
     """
-    Convert scheduler SessionEvent objects into QuizResponse objects so that
+    Convert SessionEvent objects into QuizResponse objects so that
     study-session interactions can update BKT mastery.
+
+    If events is None, they will be loaded from CSV.
 
     error_depth defaults to 0.0 because SessionEvent doesn't carry that field.
     """
+    if events is None:
+        events = load_session_events()
+
     responses: List[QuizResponse] = []
     for e in events:
         responses.append(

@@ -10,30 +10,30 @@ Builds on top of the Learning State Engine (Person 1 — Yajie) to produce:
   5. Predicted exam scores (current pace vs recommended plan)
 """
 
-import json
 import os
 import sys
 from datetime import date, datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-from learning_model import KnowledgeGraph, MasteryEngine, QuizResponse
+from learning_model import MasteryEngine
 from scheduler import (
     AvailabilityWindow,
     CognitiveLoadTracker,
-    SessionEvent,
     TimetableEngine,
+)
+from bridge import (
+    SessionEvent,
+    build_knowledge_graph,
+    load_exam_weights,
+    load_session_events,
+    session_event_to_quiz_responses,
 )
 
 # ──────────────────────────────────────────────────────────────────────
 # 1. Load curriculum → knowledge graph
 # ──────────────────────────────────────────────────────────────────────
-with open("data/sample_curriculum.json") as f:
-    curricula = json.load(f)
-
-kg = KnowledgeGraph()
-for curriculum in curricula:
-    kg.load_curriculum(curriculum)
+kg = build_knowledge_graph()
 
 print("=" * 60)
 print("SCHEDULER DEMO — Adaptive Timetable Engine")
@@ -41,7 +41,7 @@ print("=" * 60)
 print(f"\nKnowledge graph loaded.  Concepts: {kg.get_concepts()}\n")
 
 # ──────────────────────────────────────────────────────────────────────
-# 2. Initialize MasteryEngine and simulate quiz responses
+# 2. Initialize MasteryEngine and load session events from CSV
 # ──────────────────────────────────────────────────────────────────────
 engine = MasteryEngine(
     knowledge_graph=kg,
@@ -49,30 +49,15 @@ engine = MasteryEngine(
     openai_model="gpt-4o-mini",
 )
 
-STUDENT = "student_42"
-SUBJECT = "deep_learning"
+STUDENT = "stu_001"
+SUBJECT = "computer_security"
 
-responses = [
-    # Strong on linear algebra
-    QuizResponse(STUDENT, "linear_algebra", SUBJECT, correct=True,  response_time_seconds=12.0),
-    QuizResponse(STUDENT, "linear_algebra", SUBJECT, correct=True,  response_time_seconds=10.0),
-    QuizResponse(STUDENT, "linear_algebra", SUBJECT, correct=True,  response_time_seconds=11.0),
-    # Weak on chain_rule
-    QuizResponse(STUDENT, "chain_rule", SUBJECT, correct=False, response_time_seconds=55.0, error_depth=0.8),
-    QuizResponse(STUDENT, "chain_rule", SUBJECT, correct=False, response_time_seconds=62.0, error_depth=0.9),
-    # Weak on backprop (downstream of chain_rule)
-    QuizResponse(STUDENT, "backprop", SUBJECT, correct=False, response_time_seconds=90.0, error_depth=0.9),
-    QuizResponse(STUDENT, "backprop", SUBJECT, correct=False, response_time_seconds=85.0, error_depth=0.8),
-    # Moderate on gradient_descent
-    QuizResponse(STUDENT, "gradient_descent", SUBJECT, correct=True,  response_time_seconds=30.0),
-    QuizResponse(STUDENT, "gradient_descent", SUBJECT, correct=False, response_time_seconds=45.0, error_depth=0.4),
-    # Calculus: weak root cause for chain_rule
-    QuizResponse(STUDENT, "calculus", SUBJECT, correct=False, response_time_seconds=70.0, error_depth=0.7),
-    QuizResponse(STUDENT, "calculus", SUBJECT, correct=True,  response_time_seconds=50.0),
-]
+all_events = load_session_events()
+student_events = [e for e in all_events if e.student_id == STUDENT]
+responses = session_event_to_quiz_responses(student_events, subject=SUBJECT)
 
 engine.update_from_quiz(responses)
-print(f"Processed {len(responses)} quiz responses.\n")
+print(f"Processed {len(responses)} quiz responses (from session_events.csv).\n")
 
 # ──────────────────────────────────────────────────────────────────────
 # 3. Build TimetableEngine and generate 14-day plan
@@ -83,15 +68,7 @@ timetable = TimetableEngine(
     openai_api_key=os.getenv("OPENAI_API_KEY"),
 )
 
-exam_weights = {
-    "linear_algebra":   0.15,
-    "calculus":         0.10,
-    "chain_rule":       0.20,
-    "gradient_descent": 0.15,
-    "backprop":         0.25,
-    "cnn":              0.10,
-    "transformers":     0.05,
-}
+exam_weights = load_exam_weights()
 
 exam_date = date.today() + timedelta(days=14)
 
@@ -178,22 +155,22 @@ tracker = CognitiveLoadTracker(student_id=STUDENT)
 base_time = datetime.now()
 session_events = [
     # First half — reasonable performance
-    SessionEvent(STUDENT, "chain_rule",      SUBJECT, correct=True,  response_time_seconds=28.0,
+    SessionEvent(STUDENT, "buffer_overflow",          SUBJECT, correct=True,  response_time_seconds=28.0,
                  timestamp=base_time + timedelta(minutes=0)),
-    SessionEvent(STUDENT, "chain_rule",      SUBJECT, correct=True,  response_time_seconds=32.0,
+    SessionEvent(STUDENT, "buffer_overflow",          SUBJECT, correct=True,  response_time_seconds=32.0,
                  timestamp=base_time + timedelta(minutes=3)),
-    SessionEvent(STUDENT, "calculus",        SUBJECT, correct=True,  response_time_seconds=25.0,
+    SessionEvent(STUDENT, "stack_frame",              SUBJECT, correct=True,  response_time_seconds=25.0,
                  timestamp=base_time + timedelta(minutes=6)),
-    SessionEvent(STUDENT, "calculus",        SUBJECT, correct=False, response_time_seconds=40.0,
+    SessionEvent(STUDENT, "stack_frame",              SUBJECT, correct=False, response_time_seconds=40.0,
                  timestamp=base_time + timedelta(minutes=9)),
     # Second half — accuracy drops, response time climbs (fatigue)
-    SessionEvent(STUDENT, "backprop",        SUBJECT, correct=False, response_time_seconds=65.0,
+    SessionEvent(STUDENT, "reference_monitor",        SUBJECT, correct=False, response_time_seconds=65.0,
                  timestamp=base_time + timedelta(minutes=30)),
-    SessionEvent(STUDENT, "backprop",        SUBJECT, correct=False, response_time_seconds=72.0,
+    SessionEvent(STUDENT, "reference_monitor",        SUBJECT, correct=False, response_time_seconds=72.0,
                  timestamp=base_time + timedelta(minutes=33)),
-    SessionEvent(STUDENT, "gradient_descent",SUBJECT, correct=False, response_time_seconds=80.0,
+    SessionEvent(STUDENT, "format_string_vulnerability", SUBJECT, correct=False, response_time_seconds=80.0,
                  timestamp=base_time + timedelta(minutes=36)),
-    SessionEvent(STUDENT, "gradient_descent",SUBJECT, correct=False, response_time_seconds=88.0,
+    SessionEvent(STUDENT, "format_string_vulnerability", SUBJECT, correct=False, response_time_seconds=88.0,
                  timestamp=base_time + timedelta(minutes=39)),
 ]
 
