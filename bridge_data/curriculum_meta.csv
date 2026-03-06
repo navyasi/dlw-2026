@@ -1,0 +1,23 @@
+concept_id,name,subject,difficulty,prerequisites
+memory_layout,Memory Layout,computer_security,medium,
+stack_frame,Stack Frame,computer_security,medium,memory_layout
+buffer_overflow,Buffer Overflow,computer_security,hard,memory_layout|stack_frame
+printf_basics,Printf Basics,computer_security,easy,
+format_string_vulnerability,Format String Vulnerability,computer_security,medium,printf_basics
+integer_representation,Integer Representation,computer_security,easy,
+integer_overflow,Integer Overflow,computer_security,medium,integer_representation
+safe_c_functions,Safe C Functions,computer_security,easy,
+safe_libraries,Safe Libraries,computer_security,easy,safe_c_functions
+safe_programming_languages,Safe Programming Languages,computer_security,easy,
+software_testing,Software Testing,computer_security,easy,
+fuzzing,Fuzzing,computer_security,medium,software_testing
+authentication,Authentication,computer_security,easy,
+authorization_access_control,Authorization and Access Control,computer_security,medium,authentication
+logging_monitoring_auditing,Logging Monitoring Auditing,computer_security,medium,authorization_access_control
+confinement,Confinement,computer_security,medium,
+virtual_machine_confinement,Virtual Machine Confinement,computer_security,medium,confinement
+container_confinement,Container Confinement,computer_security,medium,confinement
+reference_monitor,Reference Monitor,computer_security,hard,authorization_access_control
+hardware_assisted_protection,Hardware Assisted Protection,computer_security,medium,
+tpm,Trusted Platform Module,computer_security,medium,hardware_assisted_protection
+trusted_execution_environment,Trusted Execution Environment,computer_security,hard,hardware_assisted_protection|tpm
