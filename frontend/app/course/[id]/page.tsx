@@ -917,7 +917,6 @@ export default function CoursePage({ params }: Props) {
                     textTransform: "capitalize",
                     cursor: "pointer",
                     background: contentMode === mode ? "white" : "transparent",
-                    borderBottom: contentMode === mode ? "2px solid var(--accent)" : "2px solid transparent",
                     color: contentMode === mode ? "var(--accent)" : "var(--text-muted)",
                     border: "none",
                     borderBottomWidth: 2,

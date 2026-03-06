@@ -136,7 +136,7 @@
 
 //     if (loading) {
 //         return (
-//             <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, paddingTop: 80 }}>
+//             <div style={{ paddingTop: 80, paddingBottom: 24, paddingLeft: 24, paddingRight: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
 //                 <div className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
 //                 <span style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>Generating quiz questions...</span>
 //             </div>
@@ -502,7 +502,7 @@ export default function QuizPanel({ notebookId, view = "all" }: Props) {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, paddingTop: 80 }}>
+      <div style={{ paddingTop: 80, paddingBottom: 24, paddingLeft: 24, paddingRight: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
         <div className="spinner" style={{ width: 28, height: 28, borderWidth: 3 }} />
         <span style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>
           Generating {view === "activities" ? "activities" : view === "quiz" ? "quiz" : "module"}...

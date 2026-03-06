@@ -177,7 +177,7 @@ export default function CoursePage({ params }: Props) {
         <div style={{ height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
             {/* Top Toolbar */}
             <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", background: "white", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                <Link href="/study" style={{ color: "var(--text-muted)", fontSize: 12 }}>← Courses</Link>
+                <Link href="http://localhost:5500/" style={{ color: "var(--text-muted)", fontSize: 12 }}>← Courses</Link>
                 <div style={{ width: 1, height: 16, background: "var(--border)", margin: "0 2px" }} />
                 <button
                     onClick={() => setSidebarOpen((v) => !v)}
