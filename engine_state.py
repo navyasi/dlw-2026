@@ -10,36 +10,29 @@ Usage:
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
 from typing import Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from learning_model import KnowledgeGraph, MasteryEngine  # type: ignore
+from learning_model import MasteryEngine  # type: ignore
 
 _engine: Optional[MasteryEngine] = None
-_kg: Optional[KnowledgeGraph] = None
+_kg = None
 
 
-def get_shared_engine() -> tuple[MasteryEngine, KnowledgeGraph]:
+def get_shared_engine() -> tuple[MasteryEngine, object]:
     """Return the process-level MasteryEngine + KnowledgeGraph singleton.
 
-    Creates them on first call by loading data/sample_curriculum.json.
+    Creates them on first call by loading bridge_data/curriculum_meta.csv.
     Subsequent calls return the cached instances (preserving all mastery state).
     """
     global _engine, _kg
     if _engine is None or _kg is None:
-        curriculum_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "data", "sample_curriculum.json"
-        )
-        with open(curriculum_path) as f:
-            curricula = json.load(f)
+        from bridge import build_knowledge_graph
 
-        _kg = KnowledgeGraph()
-        for curriculum in curricula:
-            _kg.load_curriculum(curriculum)
+        _kg = build_knowledge_graph()
 
         _engine = MasteryEngine(
             knowledge_graph=_kg,

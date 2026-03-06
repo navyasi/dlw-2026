@@ -95,16 +95,15 @@ async def integrated_weekly(payload: dict = Body(...)):
         from scheduler import TimetableEngine, AvailabilityWindow
         from learning_model import QuizResponse
 
-        student_id = payload.get("student_id", "student_01")
-        subject = payload.get("subject", "deep_learning")
-        exam_weights: dict = payload.get("exam_weights", {})
+        from bridge import load_exam_weights, load_topic_mastery
+
+        student_id = payload.get("student_id", "stu_001")
+        subject = payload.get("subject", "computer_security")
+        exam_weights: dict = payload.get("exam_weights") or load_exam_weights()
         days_until_exam = int(payload.get("days_until_exam", 14))
         current_weekly_minutes = int(payload.get("current_weekly_minutes", 240))
         topic_mastery: dict = payload.get("topic_mastery", {})
         raw_quiz_responses: list = payload.get("quiz_responses", [])
-
-        if not exam_weights:
-            raise HTTPException(status_code=422, detail="exam_weights is required")
 
         engine, kg = get_shared_engine()
 
@@ -125,6 +124,12 @@ async def integrated_weekly(payload: dict = Body(...)):
         elif topic_mastery:
             responses = grade_to_quiz_responses(topic_mastery, student_id, subject)
             engine.update_from_quiz(responses)
+        else:
+            # Fall back to CSV mastery data for this student
+            csv_mastery = load_topic_mastery(student_id=student_id, subject=subject)
+            if csv_mastery:
+                responses = grade_to_quiz_responses(csv_mastery, student_id, subject)
+                engine.update_from_quiz(responses)
 
         # 2. Get mastery state
         mastery_state = engine.get_mastery_state(student_id, subject)

@@ -28,7 +28,7 @@ class GradeRequest(BaseModel):
     completed_activity_ids: list[str]
     quiz_answers: dict[str, str]
     student_id: str = "student_01"
-    subject: str = "deep_learning"
+    subject: str = "computer_security"
 
 
 @router.post("/{notebook_id}/generate")

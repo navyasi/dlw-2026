@@ -84,9 +84,9 @@ async def integrated_weekly(payload: dict = Body(...)):
 
     Request body:
     {
-      "student_id":             "student_42",
-      "subject":                "deep_learning",
-      "exam_weights":           {"backprop": 0.25, "chain_rule": 0.20, ...},
+      "student_id":             "stu_001",
+      "subject":                "computer_security",
+      "exam_weights":           {"buffer_overflow": 0.12, "reference_monitor": 0.06, ...},  // optional — defaults to CSV
       "days_until_exam":        14,
       "current_weekly_minutes": 240,       // optional, default 240
       "topic_mastery":          {"backprop": 0.45, "chain_rule": 0.30, ...},  // optional — from /grade-kinesthetic
@@ -106,16 +106,15 @@ async def integrated_weekly(payload: dict = Body(...)):
     }
     """
     try:
-        student_id = payload.get("student_id", "student_01")
-        subject = payload.get("subject", "deep_learning")
-        exam_weights: dict = payload.get("exam_weights", {})
+        from bridge import load_exam_weights, load_topic_mastery
+
+        student_id = payload.get("student_id", "stu_001")
+        subject = payload.get("subject", "computer_security")
+        exam_weights: dict = payload.get("exam_weights") or load_exam_weights()
         days_until_exam = int(payload.get("days_until_exam", 14))
         current_weekly_minutes = int(payload.get("current_weekly_minutes", 240))
         topic_mastery: dict = payload.get("topic_mastery", {})
         raw_quiz_responses: list = payload.get("quiz_responses", [])
-
-        if not exam_weights:
-            raise HTTPException(status_code=422, detail="exam_weights is required")
 
         api_key = os.getenv("OPENAI_API_KEY")
         from engine_state import get_shared_engine
