@@ -18,7 +18,7 @@ const ConceptMap = dynamic(() => import("@/components/ConceptMap"), { ssr: false
 
 interface Props { params: Promise<{ id: string }> }
 type MainView = "notes" | "concept-map" | "tutorial";
-type ContentMode = "visual" | "audio" | "quiz" | "lectures" | "tutorials";
+type ContentMode = "visual" | "audio" | "kinesthetic" | "quiz" | "lectures" | "tutorials";
 
 const SOURCE_LABEL: Record<string, string> = {
     slides: "Lecture",
@@ -177,7 +177,7 @@ export default function CoursePage({ params }: Props) {
         <div style={{ height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
             {/* Top Toolbar */}
             <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)", background: "white", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                <Link href="http://localhost:5500/" style={{ color: "var(--text-muted)", fontSize: 12 }}>← Courses</Link>
+                <Link href="http://localhost:8080/" style={{ color: "var(--text-muted)", fontSize: 12 }}>← Courses</Link>
                 <div style={{ width: 1, height: 16, background: "var(--border)", margin: "0 2px" }} />
                 <button
                     onClick={() => setSidebarOpen((v) => !v)}
@@ -302,7 +302,7 @@ export default function CoursePage({ params }: Props) {
                             display: "flex", gap: 0, borderBottom: "1px solid var(--border)",
                             background: "#FAFAFC", flexShrink: 0,
                         }}>
-                            {(["visual", "audio", "quiz", "lectures", "tutorials"] as const).map((mode) => (
+                            {(["visual", "audio", "kinesthetic", "quiz", "lectures", "tutorials"] as const).map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => {
@@ -322,7 +322,7 @@ export default function CoursePage({ params }: Props) {
                                         borderBottomColor: contentMode === mode ? "var(--accent)" : "transparent",
                                     }}
                                 >
-                                    {mode === "visual" ? "Visual" : mode === "audio" ? "Audio" : mode === "quiz" ? "Quiz" : mode === "lectures" ? `Lectures (${course.lecture_count})` : `Tutorials (${course.tutorial_count})`}
+                                    {mode === "visual" ? "Visual" : mode === "audio" ? "Audio" : mode === "kinesthetic" ? "Kinesthetic" : mode === "quiz" ? "Quiz" : mode === "lectures" ? `Lectures (${course.lecture_count})` : `Tutorials (${course.tutorial_count})`}
                                 </button>
                             ))}
                         </div>
@@ -393,9 +393,13 @@ export default function CoursePage({ params }: Props) {
                                 );
                             })}
                         </div>
+                    ) : contentMode === "kinesthetic" && activeSection && activeSection.source_type !== "tutorial" ? (
+                        <div style={{ flex: 1, overflowY: "auto" }}>
+                            <QuizPanel notebookId={activeSection.id} view="activities" />
+                        </div>
                     ) : contentMode === "quiz" && activeSection && activeSection.source_type !== "tutorial" ? (
                         <div style={{ flex: 1, overflowY: "auto" }}>
-                            <QuizPanel notebookId={activeSection.id} />
+                            <QuizPanel notebookId={activeSection.id} view="quiz" />
                         </div>
                     ) : sectionLoading ? (
                         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>

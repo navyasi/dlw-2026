@@ -40,10 +40,10 @@ In a new terminal:
 
 ```bash
 cd ntulearn_clone
-python3 -m http.server 5500
+python3 -m http.server 8080
 ```
 
-Open **http://localhost:5500**
+Open **http://localhost:8080**
 
 ### 5. Start the Next.js frontend (port 3000)
 
@@ -55,7 +55,7 @@ npm install   # first time only
 npm run dev
 ```
 
-The NTULearn "Start Session" button will open **http://localhost:3000/course/1**.
+The NTULearn "Start Session" button will open **http://localhost:3000/study/course/1**.
 
 ---
 

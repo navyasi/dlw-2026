@@ -90,7 +90,7 @@ export default function HomePage() {
       <p style={{ color: "var(--text-muted)", marginBottom: 32 }}>Select a course to start studying.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {courses.map((c) => (
-          <a key={c.id} href={`/course/${c.id}`} style={{ textDecoration: "none" }}>
+          <a key={c.id} href={`/study/course/${c.id}`} style={{ textDecoration: "none" }}>
             <div className="notebook-card" style={{ padding: "20px 24px" }}>
               <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>{c.title}</div>
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>{c.description}</div>
