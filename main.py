@@ -221,6 +221,7 @@ async def integrated_weekly(payload: dict = Body(...)):
             "student_id": student_id,
             "subject": subject,
             "weekly_report": weekly_report,
+            "concepts_payload": concepts_payload,
             "study_plan": study_plan_out,
             "todays_schedule": todays_out,
         }

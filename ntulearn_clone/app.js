@@ -1,12 +1,12 @@
 const initialCourses = [
     {
         id: '1',
-        code: 'CZ1003',
-        title: 'Introduction to Computational Thinking',
+        code: 'SC3010',
+        title: 'Computer Security',
         term: '2025-s2',
         favourite: true,
         instructors: ['Luiz Fernando', 'Smith John'],
-        image: 'https://picsum.photos/seed/cz1003/600/300'
+        image: 'https://picsum.photos/seed/sc3010/600/300'
     },
     {
         id: '2',
@@ -135,10 +135,7 @@ const state = {
         { id: 'c_sc2006_lec_wed', title: 'SC2006: Software Engineering', day: 2, kind: 'lecture', startMin: 540, endMin: 660, code: 'LEC' }, // Wed 09–11
         { id: 'c_sc2006_tut_fri', title: 'SC2006: Software Engineering', day: 4, kind: 'tutorial', startMin: 720, endMin: 780, code: 'TUT' }, // Fri 12–13
 
-        // ── Today's Study Sessions (Green) — Tuesday ──
-        { id: 't1', title: 'SC3010: Software Security', day: 1, kind: 'study', startMin: 540, endMin: 600, code: 'STUDY SESSION' }, // 09:00 - 10:00
-        { id: 't2', title: 'SC2002: Polymorphism', day: 1, kind: 'study', startMin: 600, endMin: 660, code: 'STUDY SESSION' }, // 10:00 - 11:00
-        { id: 't3', title: 'SC2006: Design Patterns', day: 1, kind: 'study', startMin: 780, endMin: 870, code: 'STUDY SESSION' }  // 13:00 - 14:30
+        // ── Study Sessions — populated by backend (see fetchAndApplyBackendData) ──
     ]
 };
 
@@ -738,7 +735,8 @@ function renderCalendar() {
                 const start = Math.max(e.startMin ?? dayStartMin, dayStartMin);
                 const end = Math.min(e.endMin ?? (start + 60), dayEndMin);
                 const top = ((start - dayStartMin) / 60) * PX_PER_HOUR;
-                const height = Math.max(24, ((end - start) / 60) * PX_PER_HOUR - 2);
+                const minH = (e.kind === 'study') ? 72 : 24;
+                const height = Math.max(minH, ((end - start) / 60) * PX_PER_HOUR - 2);
 
                 const kind = e.kind || 'study';
                 const missed = kind === 'missed';
@@ -1052,24 +1050,28 @@ function openCalModal(dayIdx, editId = null, startMinClicked = null, evt = null)
    ========================================================================= */
 
 async function fetchAndApplyBackendData() {
+    // Topic mastery from bridge_data/topic_mastery.csv (stu_001, computer_security)
+    const topicMastery = {
+        memory_layout: 0.82,
+        stack_frame: 0.74,
+        buffer_overflow: 0.41,
+        format_string_vulnerability: 0.56,
+        integer_overflow: 0.47,
+        authentication: 0.84,
+        authorization_access_control: 0.61,
+        reference_monitor: 0.35
+    };
+
     const payload = {
-        student_id: "student_demo",
-        subject: "deep_learning",
-        exam_weights: {
-            linear_algebra: 0.15,
-            calculus: 0.10,
-            chain_rule: 0.15,
-            gradient_descent: 0.20,
-            backprop: 0.25,
-            cnn: 0.10,
-            transformers: 0.05
-        },
+        student_id: "stu_001",
+        subject: "computer_security",
         days_until_exam: 14,
-        current_weekly_minutes: 240
+        current_weekly_minutes: 240,
+        topic_mastery: topicMastery
     };
 
     try {
-        const res = await fetch('http://localhost:8000/integrated-weekly', {
+        const res = await fetch('http://localhost:8001/integrated-weekly', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1077,11 +1079,11 @@ async function fetchAndApplyBackendData() {
         if (!res.ok) { console.warn('Backend returned', res.status); return; }
         const data = await res.json();
 
-        // 1. Stats cards
         const pm = data.weekly_report.predicted_score_model;
         const baseScore = Math.round(pm.base_expected);
         const recScore = Math.round(pm.simulation_recommended_plan.expected_score);
 
+        // 1. Dashboard stats cards
         const readinessEl = document.getElementById('ns-stat-readiness');
         if (readinessEl) readinessEl.innerHTML = `${baseScore}<span class="ns-stat-sub">/100</span>`;
 
@@ -1091,7 +1093,18 @@ async function fetchAndApplyBackendData() {
         const trendEl = document.getElementById('ns-stat-predicted-trend');
         if (trendEl) trendEl.textContent = `Projected: ${baseScore} → ${recScore}`;
 
-        // 2. Quick Insights
+        // Compute focus time from today's schedule
+        let focusTimeStr = '--';
+        if (data.todays_schedule && data.todays_schedule.total_study_minutes) {
+            const mins = data.todays_schedule.total_study_minutes;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            focusTimeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        }
+        const focusEl = document.getElementById('ns-stat-focus');
+        if (focusEl) focusEl.textContent = focusTimeStr;
+
+        // 2. Quick Insights (dashboard sidebar)
         const recs = data.weekly_report.prescriptive_analysis.recommendations.slice(0, 3);
         const insightsList = document.getElementById('ns-insights-list');
         if (insightsList && recs.length > 0) {
@@ -1100,7 +1113,28 @@ async function fetchAndApplyBackendData() {
             ).join('');
         }
 
-        // 3. Today's schedule → sidebar timeline
+        // 3. Populate courseAnalyticsData['1'] with real backend concepts
+        if (data.concepts_payload && data.concepts_payload.length > 0) {
+            courseAnalyticsData['1'].concepts = data.concepts_payload.map(c => ({
+                id: c.id,
+                name: c.name,
+                exam_weightage: c.exam_weightage,
+                mastery: c.mastery,
+                last_practiced_at: c.last_practiced_at || null,
+                prerequisites: c.prerequisites || [],
+                difficulty: c.difficulty || 'medium',
+            }));
+            courseAnalyticsData['1'].focusTime = focusTimeStr;
+        }
+
+        // 4. Store backend prescriptive recommendations for the analytics Prescriptive Plan
+        courseAnalyticsData['1'].backendRecommendations =
+            data.weekly_report.prescriptive_analysis.recommendations || [];
+
+        // 5. Store predicted score model for analytics view
+        courseAnalyticsData['1'].predictedScoreModel = pm;
+
+        // 6. Today's schedule → sidebar timeline
         if (data.todays_schedule && data.todays_schedule.blocks && data.todays_schedule.blocks.length > 0) {
             let cursor = 9 * 60; // start at 09:00
             state.todayPlan = data.todays_schedule.blocks.map((b, i) => {
@@ -1115,16 +1149,44 @@ async function fetchAndApplyBackendData() {
                     id: `p${i + 1}`,
                     timeStart: start,
                     timeEnd: end,
-                    subjectTitle: conceptName,
+                    subjectTitle: `SC3010: ${conceptName}`,
                     status: i === 0 ? 'active' : 'pending',
                     subjectId: `subj${(i % 3) + 1}`
                 };
             });
             state.todayProgressPct = 0;
             renderStudySidebar();
+
+            // 6b. Also add study blocks to the calendar on Sunday (day 6)
+            // Remove any previously injected backend study blocks
+            state.calendarBlocks = state.calendarBlocks.filter(b => !b.id.startsWith('backend_study_'));
+
+            let calCursor = 9 * 60; // start at 09:00
+            data.todays_schedule.blocks.forEach((b, i) => {
+                const startMin = calCursor;
+                calCursor += b.duration_minutes;
+                const endMin = calCursor;
+                const conceptName = b.concept_ids[0]
+                    ? b.concept_ids[0].replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
+                    : `Block ${i + 1}`;
+
+                // Only add work/review blocks (skip short_break/long_break)
+                if (b.block_type === 'work' || b.block_type === 'review') {
+                    state.calendarBlocks.push({
+                        id: `backend_study_${i}`,
+                        title: `SC3010: ${conceptName}`,
+                        day: 6, // Sunday
+                        kind: 'study',
+                        startMin,
+                        endMin,
+                        code: 'STUDY SESSION'
+                    });
+                }
+            });
+            renderCalendar();
         }
 
-        // 4. Store top concepts for course mastery rings
+        // 7. Store top concepts for course mastery rings
         state.topConcepts = data.weekly_report.priority_ranking.top_concepts;
         renderNsAppCourses();
 
@@ -1304,19 +1366,12 @@ function renderNsAppCourses() {
  *   const payload = await fetch('/api/course-report?course_id=' + courseId).then(r => r.json());
  */
 const courseAnalyticsData = {
-    '1': { // CZ1003
-        name: 'Introduction to Computational Thinking',
-        code: 'CZ1003',
-        focusTime: '3h 20m',
-        concepts: [
-            { id: 'c01', name: 'Variables & Data Types', exam_weightage: 0.10, mastery: 0.85, last_practiced_at: '2026-02-28T09:00:00Z', prerequisites: [], difficulty: 'easy' },
-            { id: 'c02', name: 'Control Flow', exam_weightage: 0.15, mastery: 0.72, last_practiced_at: '2026-02-27T14:00:00Z', prerequisites: ['c01'], difficulty: 'medium' },
-            { id: 'c03', name: 'Arrays & Strings', exam_weightage: 0.20, mastery: 0.42, last_practiced_at: '2026-02-22T10:00:00Z', prerequisites: ['c01', 'c02'], difficulty: 'medium' },
-            { id: 'c04', name: 'Pointers & Memory', exam_weightage: 0.20, mastery: 0.30, last_practiced_at: null, prerequisites: ['c03'], difficulty: 'hard' },
-            { id: 'c05', name: 'Functions & Recursion', exam_weightage: 0.15, mastery: 0.55, last_practiced_at: '2026-02-24T08:00:00Z', prerequisites: ['c02'], difficulty: 'medium' },
-            { id: 'c06', name: 'Sorting Algorithms', exam_weightage: 0.10, mastery: 0.65, last_practiced_at: '2026-02-25T11:00:00Z', prerequisites: ['c03'], difficulty: 'hard' },
-            { id: 'c07', name: 'Computational Complexity', exam_weightage: 0.10, mastery: 0.20, last_practiced_at: null, prerequisites: ['c06'], difficulty: 'hard' },
-        ]
+    '1': { // SC3010 — populated from backend
+        name: 'Computer Security',
+        code: 'SC3010',
+        focusTime: '--',
+        concepts: [],
+        backendRecommendations: [],
     },
     '2': { // SC2002
         name: 'Object Oriented Design and Programming',
@@ -1473,10 +1528,16 @@ function renderCourseAnalytics(courseId) {
     annotated = resolveBlocked(annotated);
     state.analyticsAnnotated = annotated; // cache for drawer lookups
 
-    // 3. Compute KPIs
-    const weightedMastery = computeWeightedMastery(annotated);
-    const readiness = Math.round(weightedMastery * 100);
-    const predicted = Math.round(clamp(50 + weightedMastery * 50, 0, 100));
+    // 3. Compute KPIs — use backend predicted score model if available
+    let readiness, predicted;
+    if (payload.predictedScoreModel) {
+        readiness = Math.round(payload.predictedScoreModel.base_expected);
+        predicted = Math.round(payload.predictedScoreModel.simulation_recommended_plan.expected_score);
+    } else {
+        const weightedMastery = computeWeightedMastery(annotated);
+        readiness = Math.round(weightedMastery * 100);
+        predicted = Math.round(clamp(50 + weightedMastery * 50, 0, 100));
+    }
     const attentionCount = annotated.filter(c => c.flags.requiresAttention).length;
     const focusTime = payload.focusTime || '\u2014';
 
@@ -1484,7 +1545,9 @@ function renderCourseAnalytics(courseId) {
     document.getElementById('ns-analytics-readiness-trend').textContent = readiness >= 75 ? '\u2191 On track' : 'Needs improvement';
     document.getElementById('ns-analytics-readiness-trend').className = `ns-stat-trend ${readiness >= 75 ? 'positive' : 'negative'}`;
     document.getElementById('ns-analytics-predicted').innerHTML = `${predicted}<span class="ns-stat-sub">%</span>`;
-    document.getElementById('ns-analytics-predicted-trend').textContent = `Based on current mastery trend`;
+    document.getElementById('ns-analytics-predicted-trend').textContent = payload.predictedScoreModel
+        ? `Based on current mastery trend`
+        : `Based on current mastery trend`;
     document.getElementById('ns-analytics-focus').textContent = focusTime;
     document.getElementById('ns-analytics-attention-count').textContent = attentionCount;
 
@@ -1608,6 +1671,18 @@ function renderConceptTable(annotated) {
     const container = document.getElementById('ns-analytics-table-body');
     if (!container) return;
 
+    // Check if backend recommendations are available for courseId '1'
+    const payload = courseAnalyticsData[state.activeCourseAnalyticsId];
+    const backendRecs = (payload && payload.backendRecommendations && payload.backendRecommendations.length > 0)
+        ? payload.backendRecommendations
+        : null;
+
+    // Build a lookup map from backend recs (concept_id -> recommendation)
+    const recsMap = {};
+    if (backendRecs) {
+        backendRecs.forEach(r => { recsMap[r.concept_id] = r; });
+    }
+
     // Apply filter
     let filtered = annotated;
     const f = state.analyticsFilter || 'all';
@@ -1622,12 +1697,25 @@ function renderConceptTable(annotated) {
     }
 
     container.innerHTML = filtered.map(c => {
-        const act = conceptAction(c);
-        const why = conceptWhy(c);
-        const steps = conceptNextSteps(c, act);
+        // Use backend recommendation if available, else compute locally
+        const backendRec = recsMap[c.id];
+        let actionLabel, time, why, steps;
+
+        if (backendRec) {
+            actionLabel = backendRec.action_type.charAt(0).toUpperCase() + backendRec.action_type.slice(1);
+            time = backendRec.minutes;
+            why = backendRec.rationale;
+            steps = backendRec.next_steps || [];
+        } else {
+            const act = conceptAction(c);
+            actionLabel = { learn: 'Learn', revise: 'Revise', reinforce: 'Reinforce', unblock: 'Unblock', maintain: 'Maintain' }[act.type] || act.type;
+            time = act.time;
+            why = conceptWhy(c);
+            steps = conceptNextSteps(c, act);
+        }
+
         const pct = Math.round(c.mastery * 100);
         const color = pct >= 80 ? 'var(--ns-success)' : pct >= 60 ? 'var(--ns-warning)' : 'var(--ns-danger)';
-        const actionLabel = { learn: 'Learn', revise: 'Revise', reinforce: 'Reinforce', unblock: 'Unblock', maintain: 'Maintain' }[act.type] || act.type;
 
         return `
         <div class="ns-prescriptive-card" onclick="openConceptDrawer('${c.id}')">
@@ -1637,7 +1725,7 @@ function renderConceptTable(annotated) {
                     <div class="ns-presc-action-type">${actionLabel}</div>
                 </div>
                 <div class="ns-presc-meta">
-                    <span class="ns-presc-time">${act.time} min</span>
+                    <span class="ns-presc-time">${time} min</span>
                     <div class="ns-presc-mastery-row">
                         <div style="width:80px; height:5px; background:var(--ns-sidebar-border); border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle;">
                             <div style="width:${pct}%; height:100%; background:${color};"></div>
