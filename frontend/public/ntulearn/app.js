@@ -147,6 +147,13 @@ function init() {
     if (isStudyPage) {
         state.isStudyMode = false;
         state.activeTab = 'view-courses';
+
+        // Dynamic greeting based on current time
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+        const greetingEl = document.getElementById('ns-greeting-text');
+        if (greetingEl) greetingEl.textContent = `${greeting}, Sarah`;
+
         bindNsAppEvents();
         renderNsAppCourses();
         // Globally render the timeline and progress bar in the sidebar
@@ -1339,7 +1346,7 @@ function renderNsAppCourses() {
                     <h3 class="ns-course-name">${c.code}</h3>
                     <p style="margin: 4px 0 0 0; color: var(--ns-text-muted); font-size: 0.9rem;">${c.title}</p>
                 </div>
-                <div class="ns-mastery-ring" style="--mastery: ${masteryPct}%; background: conic-gradient(${color} var(--mastery, 0%), var(--ns-sidebar-border) 0);">
+                <div class="ns-mastery-ring" style="background: conic-gradient(${color} ${masteryPct}%, var(--ns-sidebar-border) 0%);">
                     <div class="ns-mastery-inner" style="color: ${color}">${masteryPct}%</div>
                 </div>
             </div>
