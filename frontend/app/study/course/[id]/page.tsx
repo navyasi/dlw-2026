@@ -247,24 +247,7 @@ export default function CoursePage({ params }: Props) {
                         borderRight: "1px solid var(--border)", background: "#FFFFFF",
                         display: "flex", flexDirection: "column", overflow: "hidden",
                     }}>
-                        {/* Start Session button */}
-                        <div style={{ padding: "16px 14px 12px" }}>
-                            <button
-                                style={{
-                                    width: "100%", padding: "10px 0", borderRadius: "12px",
-                                    border: "1px solid var(--text)", background: "var(--text)",
-                                    color: "white", fontWeight: 700, fontSize: 13,
-                                    cursor: "pointer", display: "flex", alignItems: "center",
-                                    justifyContent: "center", gap: 8,
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                                }}
-                            >
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                                Start Session
-                            </button>
-                        </div>
+                        {/* Moved Session button to bottom */}
 
                         {/* Today's Subjects label */}
                         <div style={{ padding: "4px 14px 10px", fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--text-muted)" }}>
@@ -299,6 +282,26 @@ export default function CoursePage({ params }: Props) {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+
+                        {/* End Session button */}
+                        <div style={{ padding: "0 12px 12px" }}>
+                            <button
+                                style={{
+                                    width: "100%", padding: "10px 0", borderRadius: "12px",
+                                    border: "1px solid var(--text)", background: "white",
+                                    color: "var(--text)", fontWeight: 700, fontSize: 13,
+                                    cursor: "pointer", display: "flex", alignItems: "center",
+                                    justifyContent: "center", gap: 8,
+                                    transition: "all 0.2s"
+                                }}
+                            >
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <path d="M9 9h6v6H9z" fill="currentColor" />
+                                </svg>
+                                End Session
+                            </button>
                         </div>
 
                         {/* Progress card at bottom */}

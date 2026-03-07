@@ -61,17 +61,7 @@
                         </svg>
                         <span class="ns-nav-label">TimeMap</span>
                     </li>
-                    <li class="ns-nav-item ns-highlight-tab"
-                        onclick="window.location.href='http://localhost:3000/study/course/1'" style="cursor:pointer;"
-                        title="Start Session">
-                        <svg id="ns-sidebar-star-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <polygon
-                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
-                            </polygon>
-                        </svg>
-                        <span class="ns-nav-label">Start Session</span>
-                    </li>
+                    <!-- Start Session moved to bottom -->
 
                     <!-- Timeline Section -->
                     <li class="ns-nav-static-item">
@@ -87,6 +77,18 @@
             </nav>
 
             <div class="ns-sidebar-bottom-content" style="padding: 0 20px 20px 20px; margin-top: auto;">
+                <div class="ns-card ns-action-card"
+                    style="margin-bottom: 12px; background: white; border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; cursor: pointer;">
+                    <button
+                        onclick="window.location.href='http://localhost:8080/study.html'"
+                        style="width: 100%; border: 1px solid var(--text-main); background: white; color: var(--text-main); padding: 8px 0; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <path d="M9 9h6v6H9z" fill="currentColor"></path>
+                        </svg>
+                        End Session
+                    </button>
+                </div>
                 <div class="ns-progress-card" style="margin-bottom: 0;">
                     <div class="ns-progress-header">
                         <span>Today's Progress</span>
